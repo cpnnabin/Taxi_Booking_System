@@ -88,10 +88,14 @@ class AdminService:
         if not pickup or not dropoff or not date_str or not time_str:
             raise ValueError("Please fill required fields")
         
+        
         try:
             dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
             if dt.date() < datetime.now().date():
                 raise ValueError("Cannot create booking for past date")
+            elif dt < datetime.now():
+                raise ValueError("Cannot create booking for past time")
+            
         except ValueError as e:
             if "Cannot create booking" in str(e):
                 raise

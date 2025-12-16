@@ -298,7 +298,10 @@ class LoginPage:
                     self.clear_fields()
                     self.switch_to_dashboard(full_name, role)
                 else:
-                    messagebox.showerror("Error", "Invalid phone/email or password!")
+                    messagebox.showerror("Error", "Invalid email/phone or password!\n\nPlease check your credentials and try again.")
+                    self.txt_password.delete(0, END)
+                    self.txt_password.insert(0, self.password_placeholder)
+                    self.txt_password.config(fg="grey", show="")
             except Exception as e:
                 messagebox.showerror("Error", f"Login failed: {e}")
             finally:

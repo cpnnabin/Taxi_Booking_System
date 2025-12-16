@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter import messagebox
 from db import create_connection
+import re
 
 class RegistrationPage:
     def __init__(self, root, switch_to_login):
@@ -233,9 +234,16 @@ class RegistrationPage:
         if password != confirm_password:
             messagebox.showerror("Error", "Passwords do not match!")
             return
-        
+        # Password Strength Check
         if len(password) < 6:
             messagebox.showerror("Error", "Password must be at least 6 characters!")
+            return
+        if not re.search(r'[A-Z]', password):
+             messagebox.showerror("Error", "Password must contain at least one uppercase letter!")
+             return
+
+        if not re.search(r'\d', password):
+            messagebox.showerror("Error", "Password must contain at least one number!")
             return
         
         conn = create_connection()

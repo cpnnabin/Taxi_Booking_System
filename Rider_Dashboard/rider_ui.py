@@ -53,7 +53,7 @@ class RiderDashboard:
         # window setup
         try:
             self.root.title(f"Driver Dashboard - {self.username}")
-            self.root.geometry("1100x650")
+            self.root.geometry("950x765")
         except Exception:
             pass
         self.root.configure(bg=self.color_content_bg)

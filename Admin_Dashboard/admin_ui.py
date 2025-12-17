@@ -45,7 +45,7 @@ class AdminDashboard:
         # window
         try:
             self.root.title("Admin Dashboard")
-            self.root.geometry("1100x780")
+            self.root.geometry("950x765")
         except Exception:
             pass
         self.root.configure(bg=self.color_content_bg)

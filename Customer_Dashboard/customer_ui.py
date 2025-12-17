@@ -47,7 +47,7 @@ class CustomerDashboard:
         self.color_card_bg = self.theme_colors.get("card_bg", "#ffffff")
 
         self.root.title("Customer Dashboard")
-        self.root.geometry("1100x780")
+        self.root.geometry("950x760")
         self.root.config(bg=self.color_content_bg)
 
         # -------- COMPACT TABLE STYLE (MATCHING ADMIN/RIDER) --------

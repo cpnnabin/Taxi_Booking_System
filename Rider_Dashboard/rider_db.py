@@ -194,22 +194,35 @@ class RiderDB:
             conn.close()
 
     def complete_ride(self, booking_id, driver_id):
-        """Complete a ride."""
+        """Complete a ride and update timestamps."""
         conn = create_connection()
         if not conn:
             raise ConnectionError("Database connection failed")
 
         cur = conn.cursor()
         try:
+            # Update booking with completion status and end time
             cur.execute(
-                "UPDATE bookings SET status=%s WHERE id=%s",
-                ("Completed", booking_id)
+                """
+                UPDATE bookings 
+                SET status = 'Completed', 
+                    ride_end_time = NOW(),
+                    ride_status = 'Completed'
+                WHERE id = %s
+                """,
+                (booking_id,)
             )
+            
+            # Update driver status back to active
             cur.execute(
-                "UPDATE drivers SET driver_status=%s WHERE DID=%s",
-                ("active", driver_id)
+                "UPDATE drivers SET driver_status = 'active' WHERE DID = %s",
+                (driver_id,)
             )
+            
             conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise e
         finally:
             cur.close()
             conn.close()

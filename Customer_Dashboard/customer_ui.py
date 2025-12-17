@@ -6,6 +6,7 @@ from datetime import datetime
 import os
 
 from Customer_Dashboard.customer_service import CustomerService
+from theme_manager import get_theme_colors, save_theme_preference, get_theme_preference
 
 
 class CustomerDashboard:
@@ -21,7 +22,7 @@ class CustomerDashboard:
             self.photo_path = info[1] if info else None
             self.customer_id = self.service.customer_id
         except Exception as e:
-            messagebox.showerror("User Error", f"Failed to initialize customer: {e}")
+            messagebox.showerror("User Error", f"Failed to initialize customer:  {e}")
             print(f"[DEBUG] Failed to initialize customer {customer_id}: {e}")
             self.user_full_name = ""
             self.photo_path = None
@@ -30,40 +31,67 @@ class CustomerDashboard:
         # Cache for image reference
         self.profile_img_tk = None
 
-        # ------------------ COLORS (deep dark + light) ------------------
-        self.color_sidebar_bg = "#050816"   # very deep dark
-        self.color_sidebar_btn = "#111827"
-        self.color_sidebar_btn_active = "#1f2937"
-        self.color_content_bg = "#f9fafb"
-        self.color_accent = "#2563eb"
+        # Theme management
+        self.current_theme = get_theme_preference()
+        self.theme_colors = get_theme_colors(self.current_theme)
+        self.theme_toggle_btn = None
+
+        # ------------------ COLORS from theme ------------------
+        self.color_sidebar_bg = self.theme_colors. get("sidebar_bg", "#050816")
+        self.color_sidebar_btn = self.theme_colors.get("sidebar_btn", "#111827")
+        self.color_sidebar_btn_active = self.theme_colors.get("sidebar_btn_active", "#1f2937")
+        self.color_content_bg = self.theme_colors.get("content_bg", "#f9fafb")
+        self.color_accent = self.theme_colors.get("accent", "#2563eb")
+        self.color_text_primary = self.theme_colors.get("text_primary", "#111827")
+        self.color_text_secondary = self.theme_colors.get("text_secondary", "#6b7280")
+        self.color_card_bg = self.theme_colors.get("card_bg", "#ffffff")
 
         self.root.title("Customer Dashboard")
-        self.root.geometry("1000x650")
+        self.root.geometry("1100x780")
         self.root.config(bg=self.color_content_bg)
 
-        # -------- TABLE STYLE (for bookings list) --------
+        # -------- COMPACT TABLE STYLE (MATCHING ADMIN/RIDER) --------
         try:
             style = ttk.Style(self.root)
+            
+            # Compact Treeview with normal text
             style.configure(
                 "Customer.Treeview",
-                rowheight=22,
-                padding=(2, 1),
+                background=self.theme_colors.get("treeview_bg", "#ffffff"),
+                foreground=self.theme_colors.get("treeview_fg", "#111827"),
+                fieldbackground=self.theme_colors.get("treeview_bg", "#ffffff"),
+                rowheight=18,  # Compact
+                padding=(1, 0),  # Minimal padding
+                font=("Arial", 9),  # Normal readable
+                borderwidth=0,
+                relief="flat"
             )
             style.configure(
-                "Customer.Treeview.Heading",
-                padding=(4, 2),
+                "Customer. Treeview.Heading",
+                background=self.color_sidebar_btn,
+                foreground="#ffffff",  # White bold text (matching Admin/Rider)
+                padding=(2, 1),  # Minimal padding
+                font=("Arial", 10, "bold"),  # Bold headings
+                borderwidth=0,
+                relief="flat"
             )
-        except Exception:
+            style.map("Customer.Treeview",
+                     background=[('selected', self.theme_colors.get("treeview_selected_bg", "#2563eb"))],
+                     foreground=[('selected', self.theme_colors. get("treeview_selected_fg", "#ffffff"))])
+            
+            # Remove borders
+            style.layout("Customer.Treeview", [('Customer.Treeview.treearea', {'sticky': 'nswe'})])
+        except Exception:  
             pass
 
         # ------------------ MENU BAR ------------------
-        self.mainmenu = Menu(self.root)
+        self. mainmenu = Menu(self.root)
 
         filemenu = Menu(self.mainmenu, tearoff=0)
-        filemenu.add_command(label='New', command=self.doNothing)
+        filemenu.add_command(label='New', command=self. doNothing)
         filemenu.add_command(label='Open', command=self.doNothing)
         filemenu.add_command(label='Save', command=self.doNothing)
-        filemenu.add_command(label='Save as...', command=self.doNothing)
+        filemenu.add_command(label='Save as... ', command=self.doNothing)
         filemenu.add_command(label='Close', command=self.doNothing)
         filemenu.add_separator()
         filemenu.add_command(label='Exit', command=self.root.quit)
@@ -80,18 +108,19 @@ class CustomerDashboard:
 
         viewmenu = Menu(self.mainmenu, tearoff=0)
         viewmenu.add_command(label='Refresh Dashboard', command=self.show_dashboard)
-        viewmenu.add_command(label='Show Bookings', command=self.show_bookings)
+        viewmenu.add_command(label='Show Bookings', command=self. show_bookings)
         viewmenu.add_command(label='Show Profile', command=self.show_profile)
         self.mainmenu.add_cascade(label='View', menu=viewmenu)
 
         toolsmenu = Menu(self.mainmenu, tearoff=0)
         toolsmenu.add_command(label='Settings', command=self.show_settings)
         toolsmenu.add_command(label='Support', command=self.show_support)
-        toolsmenu.add_command(label='Export Data', command=self.doNothing)
+        toolsmenu.add_command(label='Export Data', command=self. doNothing)
+        toolsmenu.add_command(label='Toggle Theme', command=self.toggle_theme)
         self.mainmenu.add_cascade(label='Tools', menu=toolsmenu)
 
         helpmenu = Menu(self.mainmenu, tearoff=0)
-        helpmenu.add_command(label='User Guide', command=self.doNothing)
+        helpmenu.add_command(label='User Guide', command=self. doNothing)
         helpmenu.add_command(label='About', command=self.doNothing)
         helpmenu.add_command(label='Contact Support', command=self.show_support)
         self.mainmenu.add_cascade(label='Help', menu=helpmenu)
@@ -108,12 +137,76 @@ class CustomerDashboard:
         self.build_sidebar()
         self.show_dashboard()
 
+    # ------------- THEME TOGGLE (NO POPUP) -------------
+    def toggle_theme(self):
+        """Toggle between light and dark theme"""
+        self.current_theme = "dark" if self.current_theme == "light" else "light"
+        save_theme_preference(self.current_theme)
+        self.theme_colors = get_theme_colors(self.current_theme)
+        
+        # Update colors
+        self.color_sidebar_bg = self.theme_colors.get("sidebar_bg", "#050816")
+        self.color_sidebar_btn = self.theme_colors.get("sidebar_btn", "#111827")
+        self.color_sidebar_btn_active = self.theme_colors.get("sidebar_btn_active", "#1f2937")
+        self.color_content_bg = self.theme_colors.get("content_bg", "#f9fafb")
+        self.color_accent = self.theme_colors.get("accent", "#2563eb")
+        self.color_text_primary = self.theme_colors.get("text_primary", "#111827")
+        self.color_text_secondary = self.theme_colors.get("text_secondary", "#6b7280")
+        self.color_card_bg = self.theme_colors.get("card_bg", "#ffffff")
+        
+        # Update root background
+        self.root.config(bg=self.color_content_bg)
+        
+        # Update treeview style - COMPACT
+        try:
+            style = ttk. Style(self.root)
+            style.configure(
+                "Customer.Treeview",
+                background=self.theme_colors. get("treeview_bg", "#ffffff"),
+                foreground=self.theme_colors.get("treeview_fg", "#111827"),
+                fieldbackground=self.theme_colors.get("treeview_bg", "#ffffff"),
+                rowheight=18,
+                padding=(1, 0),
+                font=("Arial", 9),
+                borderwidth=0,
+                relief="flat"
+            )
+            style.configure(
+                "Customer. Treeview.Heading",
+                background=self.color_sidebar_btn,
+                foreground="#ffffff",  # White text
+                padding=(2, 1),
+                font=("Arial", 10, "bold"),
+                borderwidth=0,
+                relief="flat"
+            )
+            style.map("Customer.Treeview",
+                     background=[('selected', self.theme_colors. get("treeview_selected_bg", "#2563eb"))],
+                     foreground=[('selected', self.theme_colors.get("treeview_selected_fg", "#ffffff"))])
+            
+            style.layout("Customer.Treeview", [('Customer.Treeview.treearea', {'sticky': 'nswe'})])
+        except Exception:
+            pass
+        
+        # Rebuild UI (NO POPUP)
+        self.sidebar.destroy()
+        self.content.destroy()
+        
+        self.sidebar = Frame(self.root, width=220, bg=self.color_sidebar_bg)
+        self.sidebar.pack(side=LEFT, fill=Y)
+
+        self.content = Frame(self.root, bg=self.color_content_bg)
+        self.content.pack(side=RIGHT, fill=BOTH, expand=True)
+        
+        self.build_sidebar()
+        self.show_dashboard()
+
     # ------------- IMAGE UTIL -------------
     def _load_circular_image(self, path, size=(100, 100)):
         """Load image from path, crop to circle, return PhotoImage."""
         try:
             img = Image.open(path).convert("RGBA")
-            img = img.resize(size, Image.LANCZOS)
+            img = img.resize(size, Image. LANCZOS)
 
             mask = Image.new("L", size, 0)
             draw = ImageDraw.Draw(mask)
@@ -125,13 +218,32 @@ class CustomerDashboard:
             print(f"[DEBUG] _load_circular_image error: {e}")
             return None
 
-    # ------------------ SIDEBAR ------------------
+    # ------------------ SIDEBAR (LOGOUT AT BOTTOM) ------------------
     def build_sidebar(self):
+        # Theme toggle button at the top
+        toggle_bg = "#f0f0f0" if self.current_theme == "light" else "#2d3748"
+        toggle_fg = "#333333" if self.current_theme == "light" else "#e2e8f0"
+        
+        self.theme_toggle_btn = Button(
+            self.sidebar,
+            text="🌙" if self.current_theme == "light" else "☀️",
+            font=("Arial", 14),
+            bg=toggle_bg,
+            fg=toggle_fg,
+            relief=FLAT,
+            bd=0,
+            cursor="hand2",
+            command=self.toggle_theme,
+            width=3,
+            height=1
+        )
+        self.theme_toggle_btn.pack(pady=(10, 0))
+        
         Label(
             self.sidebar,
             text="Customer Menu",
             fg="white",
-            bg=self.color_sidebar_bg,
+            bg=self. color_sidebar_bg,
             font=("Arial", 16, "bold"),
             pady=20
         ).pack()
@@ -141,9 +253,8 @@ class CustomerDashboard:
             ("Book Taxi", self.show_book_taxi),
             ("My Bookings", self.show_bookings),
             ("Profile", self.show_profile),
-            ("Support", self.show_support),
             ("Settings", self.show_settings),
-            ("Logout", self.logout),
+            ("Support", self.show_support),
         ]
 
         for text, cmd in btns:
@@ -162,15 +273,28 @@ class CustomerDashboard:
                 height=2
             ).pack(pady=5)
 
+        # LOGOUT AT BOTTOM (like Admin/Rider)
+        Button(
+            self.sidebar,
+            text="Logout",
+            width=20,
+            bg="#ef4444",
+            fg="white",
+            font=("Arial", 12, "bold"),
+            relief="flat",
+            cursor="hand2",
+            command=self._on_logout
+        ).pack(side=BOTTOM, pady=20)
+
     def clear_content(self):
         for w in self.content.winfo_children():
             w.destroy()
 
-    # -------- shared helper: make Treeview columns sortable --------
+    # -------- shared helper:  make Treeview columns sortable --------
     def _make_treeview_sortable(self, tree, cols, numeric_cols=None):
         """
-        Enable click-to-sort on ttk.Treeview headers.
-        numeric_cols: iterable of column ids that should sort numerically.
+        Enable click-to-sort on ttk.Treeview headers. 
+        numeric_cols: iterable of column ids that should sort numerically. 
         """
         if numeric_cols is None:
             numeric_cols = set()
@@ -183,7 +307,7 @@ class CustomerDashboard:
                     return int(val)
                 except Exception:
                     return 0
-            return val.lower() if isinstance(val, str) else val
+            return val. lower() if isinstance(val, str) else val
 
         def _sort(col, reverse=False):
             data = [(tree.set(k, col), k) for k in tree.get_children("")]
@@ -214,7 +338,7 @@ class CustomerDashboard:
             text="Quick glance at your booking activity",
             font=("Arial", 12),
             bg=self.color_content_bg,
-            fg="#6b7280"
+            fg=self.color_text_secondary
         ).pack()
 
         # Stats cards
@@ -222,8 +346,8 @@ class CustomerDashboard:
         cards.pack(pady=20, padx=20, fill=X)
 
         try:
-            rows = self.service.get_bookings()
-        except Exception:
+            rows = self.service. get_bookings()
+        except Exception: 
             rows = []
 
         total = len(rows)
@@ -232,13 +356,13 @@ class CustomerDashboard:
         active = total - completed - cancelled
 
         def card(parent, emoji, value, label, color):
-            outer = Frame(parent, bg="white", relief="flat", bd=1)
+            outer = Frame(parent, bg=self.color_card_bg, relief="flat", bd=1)
             outer.pack(side=LEFT, padx=10, fill=BOTH, expand=True)
-            inner = Frame(outer, bg="white")
+            inner = Frame(outer, bg=self.color_card_bg)
             inner.pack(padx=20, pady=20, fill=BOTH)
-            Label(inner, text=emoji, font=("Arial", 30), bg="white").pack()
-            Label(inner, text=str(value), font=("Arial", 28, "bold"), bg="white", fg=color).pack()
-            Label(inner, text=label, font=("Arial", 12), bg="white", fg="#6b7280").pack()
+            Label(inner, text=emoji, font=("Arial", 30), bg=self.color_card_bg).pack()
+            Label(inner, text=str(value), font=("Arial", 28, "bold"), bg=self.color_card_bg, fg=color).pack()
+            Label(inner, text=label, font=("Arial", 12), bg=self.color_card_bg, fg=self.color_text_secondary).pack()
 
         card(cards, "🧳", total, "Total Bookings", "#2563eb")
         card(cards, "✅", completed, "Completed", "#16a34a")
@@ -250,7 +374,7 @@ class CustomerDashboard:
             text="Use the left menu to book a taxi or view booking history.",
             font=("Arial", 12),
             bg=self.color_content_bg,
-            fg="#4b5563"
+            fg=self.color_text_secondary
         ).pack(pady=(10, 0))
 
     # ------------------ PROFILE PAGE ------------------
@@ -261,11 +385,12 @@ class CustomerDashboard:
             self.content,
             text="My Profile",
             font=("Arial", 18, "bold"),
-            bg=self.color_content_bg
+            bg=self.color_content_bg,
+            fg=self.color_accent
         ).pack(pady=20)
 
         if not self.customer_id:
-            messagebox.showerror("Error", "Customer ID not resolved. Cannot load profile.")
+            messagebox.showerror("Error", "Customer ID not resolved.  Cannot load profile.")
             return
 
         try:
@@ -325,11 +450,11 @@ class CustomerDashboard:
                         tags="avatar_img"
                     )
                     return
-            # fallback: first letter
+            # fallback:  first letter
             avatar_canvas.create_text(
                 center_x,
                 center_y,
-                text=(full_name[:1].upper() if full_name else "?"),
+                text=(full_name[: 1].upper() if full_name else "?"),
                 font=("Arial", 32, "bold"),
                 fill="#4b5563",
                 tags="avatar_initial"
@@ -339,7 +464,7 @@ class CustomerDashboard:
 
         def upload_photo():
             filetypes = [
-                ("Image files", "*.png *.jpg *.jpeg *.gif *.bmp"),
+                ("Image files", "*.png *. jpg *.jpeg *.gif *.bmp"),
                 ("All files", "*.*"),
             ]
             filepath = filedialog.askopenfilename(
@@ -361,8 +486,8 @@ class CustomerDashboard:
 
                 self.photo_path = dest_path
                 self.service.update_photo_path(dest_path)
-                messagebox.showinfo("Success", "Profile photo updated.")
-            except Exception as e:
+                messagebox. showinfo("Success", "Profile photo updated.")
+            except Exception as e: 
                 messagebox.showerror("Error", f"Failed to update photo: {e}")
                 return
 
@@ -385,15 +510,19 @@ class CustomerDashboard:
         values = [full_name, email, phone, address, gender, role]
         entries = {}
 
+        entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
+        entry_fg = self.theme_colors.get("entry_fg", "#111827")
+
         for i, lab in enumerate(labels):
             Label(
                 frame,
                 text=lab,
                 bg=self.color_content_bg,
+                fg=self.color_text_primary,
                 font=("Arial", 12)
             ).grid(row=i, column=0, padx=10, pady=7, sticky="w")
 
-            ent = Entry(frame, width=30, font=("Arial", 12))
+            ent = Entry(frame, width=30, font=("Arial", 12), bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
             ent.insert(0, values[i])
 
             if lab in ["Email", "Gender", "Role"]:
@@ -411,11 +540,11 @@ class CustomerDashboard:
                 messagebox.showwarning("Warning", "All fields are required!")
                 return
 
-            try:
+            try: 
                 self.service.update_profile(new_name, new_phone, new_address)
                 self.user_full_name = new_name
                 messagebox.showinfo("Success", "Profile updated successfully!")
-            except Exception as e:
+            except Exception as e: 
                 messagebox.showerror("Error", f"Failed to update profile: {e}")
 
         Button(
@@ -437,13 +566,14 @@ class CustomerDashboard:
             self.content,
             text="Book a Taxi",
             font=("Arial", 18, "bold"),
-            bg=self.color_content_bg
+            bg=self.color_content_bg,
+            fg=self.color_accent
         ).pack(pady=20)
 
         frame = Frame(self.content, bg=self.color_content_bg)
         frame.pack(pady=10, padx=16, fill=X)
 
-        label_opts = {"bg": self.color_content_bg, "anchor": "w", "font": ("Arial", 11), "width": 18}
+        label_opts = {"bg": self.color_content_bg, "fg": self.color_text_primary, "anchor": "w", "font": ("Arial", 11), "width": 18}
         entry_pad = {"padx": 8, "pady": 5, "sticky": "w"}
 
         # --- load addresses from service ---
@@ -470,8 +600,8 @@ class CustomerDashboard:
         self.pickup_combo.set("Select Address")
 
         def pickup_focus_in(event):
-            if self.pickup_var.get() == "Select Address":
-                self.pickup_combo.set("")
+            if self.pickup_var.get() == "Select Address": 
+                self.pickup_combo. set("")
         self.pickup_combo.bind("<FocusIn>", pickup_focus_in)
 
         self.pickup_combo.bind(
@@ -491,14 +621,14 @@ class CustomerDashboard:
             width=34
         )
         self.drop_combo.grid(row=1, column=1, **entry_pad)
-        self.drop_combo.set("Select Address")
+        self.drop_combo. set("Select Address")
 
         def drop_focus_in(event):
-            if self.drop_var.get() == "Select Address":
-                self.drop_combo.set("")
+            if self.drop_var.get() == "Select Address": 
+                self.drop_combo. set("")
         self.drop_combo.bind("<FocusIn>", drop_focus_in)
 
-        self.drop_combo.bind(
+        self.drop_combo. bind(
             "<KeyRelease>",
             lambda e: self.update_combobox(self.drop_combo, self.drop_var)
         )
@@ -518,7 +648,7 @@ class CustomerDashboard:
             date_pattern='yyyy-mm-dd',
             mindate=today
         )
-        date_entry.set_date(today)
+        date_entry. set_date(today)
         date_entry.grid(row=2, column=1, **entry_pad)
 
         # ----- Booking time + NOW button -----
@@ -526,11 +656,14 @@ class CustomerDashboard:
             .grid(row=3, column=0, **entry_pad)
 
         time_container = Frame(frame, bg=self.color_content_bg)
-        time_container.grid(row=3, column=1, **entry_pad)
+        time_container. grid(row=3, column=1, **entry_pad)
 
-        time_entry = Entry(time_container, width=18)
+        entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
+        entry_fg = self. theme_colors.get("entry_fg", "#111827")
+
+        time_entry = Entry(time_container, width=18, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         time_entry.insert(0, datetime.now().strftime("%H:%M"))
-        time_entry.pack(side=LEFT, padx=(0, 5))
+        time_entry. pack(side=LEFT, padx=(0, 5))
 
         def set_current_time():
             now_str = datetime.now().strftime("%H:%M")
@@ -542,7 +675,7 @@ class CustomerDashboard:
         # ---------------- Submit Booking ----------------
         def submit():
             if not self.customer_id:
-                messagebox.showerror("Error", "Customer ID not available. Cannot create booking.")
+                messagebox. showerror("Error", "Customer ID not available.  Cannot create booking.")
                 return
 
             pickup = self.pickup_var.get().strip()
@@ -561,7 +694,7 @@ class CustomerDashboard:
                 messagebox.showwarning("Error", "Please choose Pickup Location.")
                 return
             if not drop or drop == "Select Address":
-                messagebox.showwarning("Error", "Please choose Dropoff Location.")
+                messagebox. showwarning("Error", "Please choose Dropoff Location.")
                 return
             if not booking_time:
                 messagebox.showwarning("Error", "Please enter booking time.")
@@ -569,12 +702,12 @@ class CustomerDashboard:
 
             try:
                 self.service.create_booking(pickup, drop, booking_date, booking_time)
-                messagebox.showinfo("Stay Tuned", "Booking successful! Stay tuned for confirmation ✨")
+                messagebox. showinfo("Stay Tuned", "Booking successful! Stay tuned for confirmation ✨")
                 self.show_bookings()
             except ValueError as e:
-                messagebox.showwarning("Error", str(e))
+                messagebox. showwarning("Error", str(e))
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to create booking: {e}")
+                messagebox.showerror("Error", f"Failed to create booking:  {e}")
                 print(f"[DEBUG] Booking insert failed: {e}")
 
         Button(
@@ -589,7 +722,7 @@ class CustomerDashboard:
 
     def update_combobox(self, combo, var):
         """
-        Filter combobox values based on typed input.
+        Filter combobox values based on typed input. 
         Works with self.districts list.
         """
         if not hasattr(self, "districts"):
@@ -604,11 +737,11 @@ class CustomerDashboard:
         filtered = [d for d in self.districts if typed in d.lower()]
 
         if not filtered:
-            combo["values"] = ["Select Address"] + self.districts
+            combo["values"] = ["Select Address"] + self. districts
         else:
             combo["values"] = filtered
 
-    # ------------------ BOOKING HISTORY PAGE ------------------
+    # ------------------ COMPACT BOOKING HISTORY (FIXED STYLE NAME) ------------------
     def show_bookings(self):
         self.clear_content()
 
@@ -616,18 +749,23 @@ class CustomerDashboard:
             self.content,
             text="My Bookings",
             font=("Arial", 18, "bold"),
-            bg=self.color_content_bg
-        ).pack(pady=20)
+            bg=self.color_content_bg,
+            fg=self.color_accent
+        ).pack(pady=8)
 
-        # Search / filter bar
+        # Compact Search / filter bar
         search_frame = Frame(self.content, bg=self.color_content_bg)
-        search_frame.pack(fill=X, padx=20, pady=(0, 5))
-        Label(search_frame, text="Search:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        search_frame.pack(fill=X, padx=10, pady=(0, 4))
+        
+        entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
+        entry_fg = self. theme_colors.get("entry_fg", "#111827")
+        
+        Label(search_frame, text="Search:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 10)).pack(side=LEFT, padx=(0, 3))
         search_var = StringVar()
-        search_entry = Entry(search_frame, textvariable=search_var, width=22)
-        search_entry.pack(side=LEFT, padx=(0, 10))
+        search_entry = Entry(search_frame, textvariable=search_var, width=20, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg, font=("Arial", 9))
+        search_entry.pack(side=LEFT, padx=(0, 8))
 
-        Label(search_frame, text="Status:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        Label(search_frame, text="Status:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 10)).pack(side=LEFT, padx=(0, 3))
         status_var = StringVar(value="All")
         status_cb = ttk.Combobox(
             search_frame,
@@ -635,25 +773,35 @@ class CustomerDashboard:
             values=["All", "Pending", "Accepted", "Completed", "Cancelled"],
             width=12,
             state="readonly",
+            font=("Arial", 9)
         )
-        status_cb.pack(side=LEFT, padx=(0, 10))
+        status_cb.pack(side=LEFT)
 
         columns = ("ID", "Pickup", "Dropoff", "Date", "Time", "Status")
-        table = ttk.Treeview(self.content, columns=columns, show="headings", height=15, style="Customer.Treeview")
+        # FIXED: Removed space from style name
+        table = ttk.Treeview(self.content, columns=columns, show="headings", height=22, style="Customer.Treeview")
 
-        # striped rows
-        table.tag_configure("evenrow", background="#ffffff")
-        table.tag_configure("oddrow", background="#f3f4f6")
+        # Striped rows with proper colors
+        even_bg = self.theme_colors.get("treeview_even", "#ffffff")
+        odd_bg = self.theme_colors.get("treeview_odd", "#f3f4f6")
+        text_color = self.theme_colors.get("treeview_fg", "#111827")
+        
+        table.tag_configure("evenrow", background=even_bg, foreground=text_color)
+        table.tag_configure("oddrow", background=odd_bg, foreground=text_color)
 
-        for col in columns:
+        # Compact but readable columns
+        for col in columns: 
             table.heading(col, text=col)
             if col == "ID":
-                table.column(col, width=60, anchor=CENTER, stretch=False)
-            elif col in ("Date", "Time", "Status"):
-                table.column(col, width=100, anchor=CENTER, stretch=False)
+                table.column(col, width=50, minwidth=45, anchor=CENTER, stretch=False)
+            elif col in ("Date", "Time"):
+                table. column(col, width=80, minwidth=75, anchor=CENTER, stretch=False)
+            elif col == "Status":
+                table.column(col, width=85, minwidth=80, anchor=CENTER, stretch=False)
             else:  # Pickup / Dropoff
-                table.column(col, width=160, stretch=True)
-        table.pack(fill=BOTH, padx=20, pady=10)
+                table.column(col, width=150, minwidth=120, stretch=True)
+        
+        table.pack(fill=BOTH, expand=True, padx=10, pady=4)
 
         # make sortable
         self._make_treeview_sortable(table, columns, numeric_cols={"ID"})
@@ -667,14 +815,14 @@ class CustomerDashboard:
         try:
             rows = self.service.get_bookings()
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to load bookings: {e}")
+            messagebox.showerror("Error", f"Failed to load bookings:  {e}")
             rows = []
 
         # Normalize rows to dict-like for easier filtering
         self._customer_bookings_cache = [
             {
                 "ID": r[0],
-                "Pickup": r[1],
+                "Pickup":  r[1],
                 "Dropoff": r[2],
                 "Date": r[3],
                 "Time": r[4],
@@ -689,7 +837,7 @@ class CustomerDashboard:
             data = filtered if filtered is not None else self._customer_bookings_cache
             for idx, r in enumerate(data):
                 vals = [
-                    r.get("ID"),
+                    r. get("ID"),
                     r.get("Pickup"),
                     r.get("Dropoff"),
                     r.get("Date"),
@@ -697,7 +845,7 @@ class CustomerDashboard:
                     r.get("Status"),
                 ]
                 tag = "evenrow" if idx % 2 == 0 else "oddrow"
-                table.insert("", END, values=vals, tags=(tag,))
+                table. insert("", END, values=vals, tags=(tag,))
 
         def _apply_filters(*_):
             text = (search_var.get() or "").strip().lower()
@@ -705,15 +853,14 @@ class CustomerDashboard:
 
             filtered = []
             for r in self._customer_bookings_cache:
-                # r dict with ID, Pickup, Dropoff, Date, Time, Status
-                rid = r.get("ID")
+                rid = r. get("ID")
                 pickup = str(r.get("Pickup", ""))
                 dropoff = str(r.get("Dropoff", ""))
                 date_str = str(r.get("Date", ""))
                 time_str = str(r.get("Time", ""))
                 status_val = str(r.get("Status", ""))
 
-                if text:
+                if text: 
                     combined = " ".join(
                         [str(rid), pickup, dropoff, date_str, time_str, status_val]
                     ).lower()
@@ -721,7 +868,7 @@ class CustomerDashboard:
                         continue
 
                 if status_filter and status_filter != "all":
-                    if status_val.lower() != status_filter:
+                    if status_val. lower() != status_filter:
                         continue
 
                 filtered.append(r)
@@ -735,7 +882,7 @@ class CustomerDashboard:
         def cancel():
             selected = table.selection()
             if not selected:
-                messagebox.showwarning("Error", "Select a booking!")
+                messagebox. showwarning("Error", "Select a booking!")
                 return
 
             booking_id = table.item(selected[0])['values'][0]
@@ -752,10 +899,10 @@ class CustomerDashboard:
             text="Cancel Booking",
             bg="#ef4444",
             fg="white",
-            width=20,
-            height=2,
+            width=18,
+            font=("Arial", 10, "bold"),
             command=cancel
-        ).pack(pady=10)
+        ).pack(pady=6)
 
     # ------------------ SETTINGS & SUPPORT ------------------
     def show_settings(self):
@@ -764,7 +911,8 @@ class CustomerDashboard:
             self.content,
             text="Settings",
             font=("Arial", 18, "bold"),
-            bg=self.color_content_bg
+            bg=self. color_content_bg,
+            fg=self.color_accent
         ).pack(pady=20)
 
         frame = Frame(self.content, bg=self.color_content_bg)
@@ -773,7 +921,8 @@ class CustomerDashboard:
         Label(
             frame,
             text="Notification Preferences",
-            bg=self.color_content_bg,
+            bg=self. color_content_bg,
+            fg=self.color_text_primary,
             font=("Arial", 12, "bold")
         ).grid(row=0, column=0, sticky="w", padx=10, pady=5)
 
@@ -784,20 +933,24 @@ class CustomerDashboard:
             frame,
             text="Email notifications",
             variable=self.email_notif_var,
-            bg=self.color_content_bg
+            bg=self.color_content_bg,
+            fg=self. color_text_primary,
+            selectcolor=self.color_card_bg
         ).grid(row=1, column=0, sticky="w", padx=20)
         Checkbutton(
             frame,
             text="SMS notifications",
             variable=self.sms_notif_var,
-            bg=self.color_content_bg
+            bg=self.color_content_bg,
+            fg=self.color_text_primary,
+            selectcolor=self.color_card_bg
         ).grid(row=2, column=0, sticky="w", padx=20)
 
         Label(
             frame,
-            text="(These settings are placeholders – connect them to DB later.)",
+            text="(These settings are placeholders – connect them to DB later. )",
             bg=self.color_content_bg,
-            fg="#6b7280"
+            fg=self.color_text_secondary
         ).grid(row=3, column=0, sticky="w", padx=10, pady=10)
 
     def show_support(self):
@@ -807,7 +960,8 @@ class CustomerDashboard:
             self.content,
             text="Support",
             font=("Arial", 18, "bold"),
-            bg=self.color_content_bg
+            bg=self.color_content_bg,
+            fg=self.color_accent
         ).pack(pady=20)
 
         Label(
@@ -815,7 +969,8 @@ class CustomerDashboard:
             text="If you face any issue with your bookings or profile,\n"
                  "you can contact our support team.",
             font=("Arial", 12),
-            bg=self.color_content_bg,
+            bg=self. color_content_bg,
+            fg=self.color_text_primary,
             justify="center"
         ).pack(pady=10)
 
@@ -836,19 +991,27 @@ class CustomerDashboard:
             command=contact_support
         ).pack(pady=20)
 
-    # ------------------ MISC & LOGOUT ------------------
+    # ------------------ LOGOUT (LIKE ADMIN/RIDER) ------------------
+    def _on_logout(self):
+        if messagebox.askyesno("Logout", "Are you sure you want to logout?"):
+            try:
+                if self.logout_callback:
+                    self.logout_callback()
+                else:
+                    self.root.destroy()
+            except Exception: 
+                try:
+                    self.root. destroy()
+                except Exception:
+                    pass
+
+    # ------------------ MISC ------------------
     def doNothing(self):
         messagebox.showinfo("Coming Soon", "Feature not implemented yet ✨")
 
     def logout(self):
-        if messagebox.askyesno("Logout", "Are you sure you want to logout?"):
-            if self.logout_callback:
-                try:
-                    self.logout_callback()
-                except Exception as e:
-                    print(f"[DEBUG] logout_callback failed: {e}")
-            else:
-                self.root.destroy()
+        """Alias for compatibility"""
+        self._on_logout()
 
     # ------------------ DESTROY / CLEANUP ------------------
     def destroy(self):
@@ -863,7 +1026,7 @@ class CustomerDashboard:
             pass
 
 
-if __name__ == "__main__":
+if __name__ == "__main__": 
     root = Tk()
     CustomerDashboard(root, customer_id=1)
     root.mainloop()

@@ -2,14 +2,16 @@ from tkinter import *
 from tkinter import ttk, messagebox, filedialog
 from PIL import Image, ImageTk, ImageDraw
 from datetime import datetime
-import os
-from Admin_Dashboard.admin_service import AdminService
+import os,sys
+sys.path.append(os.path.dirname(os. path.dirname(os.path. abspath(__file__))))
+from theme_manager import get_theme_colors, save_theme_preference, get_theme_preference
+from Admin_Dashboard. admin_service import AdminService
 
 
 class AdminDashboard:
     def __init__(self, root, admin_id, logout_callback=None):
         self.root = root
-        self.admin_id = admin_id
+        self. admin_id = admin_id
         self.logout_callback = logout_callback
 
         # Initialize service layer
@@ -19,23 +21,31 @@ class AdminDashboard:
         try:
             profile = self.service.get_profile()
             self.photo_path = profile[6] if profile and len(profile) > 6 else None
-        except Exception:
+        except Exception: 
             self.photo_path = None
 
         # Cache for image reference
         self.profile_img_tk = None
 
-        # --- shared colors with customer dashboard ---
-        self.color_sidebar_bg = "#050816"
-        self.color_sidebar_btn = "#111827"
-        self.color_sidebar_btn_active = "#1f2937"
-        self.color_content_bg = "#f9fafb"
-        self.color_accent = "#2563eb"
+        # Theme management
+        self.current_theme = get_theme_preference()
+        self.theme_colors = get_theme_colors(self.current_theme)
+        self.theme_toggle_btn = None
+
+        # --- shared colors from theme ---
+        self.color_sidebar_bg = self.theme_colors. get("sidebar_bg", "#050816")
+        self.color_sidebar_btn = self.theme_colors.get("sidebar_btn", "#111827")
+        self.color_sidebar_btn_active = self.theme_colors.get("sidebar_btn_active", "#1f2937")
+        self.color_content_bg = self.theme_colors.get("content_bg", "#f9fafb")
+        self.color_accent = self.theme_colors.get("accent", "#2563eb")
+        self.color_text_primary = self.theme_colors.get("text_primary", "#111827")
+        self.color_text_secondary = self.theme_colors.get("text_secondary", "#6b7280")
+        self.color_card_bg = self.theme_colors.get("card_bg", "#ffffff")
 
         # window
         try:
             self.root.title("Admin Dashboard")
-            self.root.geometry("1100x650")
+            self.root.geometry("1100x780")
         except Exception:
             pass
         self.root.configure(bg=self.color_content_bg)
@@ -44,21 +54,26 @@ class AdminDashboard:
         try:
             style = ttk.Style(self.root)
             style.configure(
-                "Admin.Treeview",
+                "Admin. Treeview",
+                background=self.theme_colors.get("treeview_bg", "#120606"),
+                foreground=self. theme_colors.get("treeview_fg", "#111827"),
+                fieldbackground=self.theme_colors.get("treeview_bg", "#ffffff"),
                 rowheight=22,
                 padding=(2, 1),
                 borderwidth=1
             )
             style.configure(
                 "Admin.Treeview.Heading",
+                background=self.color_sidebar_btn,
+                foreground="#0c0404",
                 padding=(4, 2),
                 borderwidth=1
             )
             # Slight selection color tweak
             style.map(
                 "Admin.Treeview",
-                background=[("selected", "#2563eb")],
-                foreground=[("selected", "white")]
+                background=[("selected", self.theme_colors.get("treeview_selected_bg", "#2563eb"))],
+                foreground=[("selected", self.theme_colors.get("treeview_selected_fg", "#ffffff"))]
             )
         except Exception:
             # If style configuration fails, continue with defaults
@@ -71,10 +86,10 @@ class AdminDashboard:
         filemenu.add_command(label='New', command=self._do_nothing)
         filemenu.add_command(label='Open', command=self._do_nothing)
         filemenu.add_command(label='Save', command=self._do_nothing)
-        filemenu.add_command(label='Save as...', command=self._do_nothing)
+        filemenu.add_command(label='Save as... ', command=self._do_nothing)
         filemenu.add_command(label='Close', command=self._do_nothing)
         filemenu.add_separator()
-        filemenu.add_command(label='Exit', command=self.root.quit)
+        filemenu.add_command(label='Exit', command=self. root.quit)
         self.mainmenu.add_cascade(label='File', menu=filemenu)
 
         editmenu = Menu(self.mainmenu, tearoff=0)
@@ -87,8 +102,8 @@ class AdminDashboard:
         self.mainmenu.add_cascade(label='Edit', menu=editmenu)
 
         viewmenu = Menu(self.mainmenu, tearoff=0)
-        viewmenu.add_command(label='Home', command=self.show_home)
-        viewmenu.add_command(label='All Bookings', command=self.show_all_bookings)
+        viewmenu.add_command(label='Home', command=self. show_home)
+        viewmenu.add_command(label='All Bookings', command=self. show_all_bookings)
         viewmenu.add_command(label='Customers', command=self.show_customers)
         viewmenu.add_command(label='Assign Driver', command=self.show_assign_driver)
         viewmenu.add_command(label='Create Booking', command=self.show_create_booking)
@@ -100,13 +115,14 @@ class AdminDashboard:
         toolsmenu.add_command(label='Settings', command=self.show_settings)
         toolsmenu.add_command(label='Support', command=self.show_support)
         toolsmenu.add_command(label='Export Data', command=self._do_nothing)
+        toolsmenu.add_command(label='Toggle Theme', command=self.toggle_theme)
         self.mainmenu.add_cascade(label='Tools', menu=toolsmenu)
 
         helpmenu = Menu(self.mainmenu, tearoff=0)
         helpmenu.add_command(label='User Guide', command=self._do_nothing)
         helpmenu.add_command(label='About', command=self._do_nothing)
         helpmenu.add_command(label='Contact Support', command=self._show_support_popup)
-        self.mainmenu.add_cascade(label='Help', menu=helpmenu)
+        self.mainmenu. add_cascade(label='Help', menu=helpmenu)
 
         self.root.config(menu=self.mainmenu)
 
@@ -114,7 +130,7 @@ class AdminDashboard:
         self.sidebar = Frame(self.root, bg=self.color_sidebar_bg, width=240)
         self.sidebar.pack(side=LEFT, fill=Y)
 
-        self.content = Frame(self.root, bg=self.color_content_bg)
+        self.content = Frame(self.root, bg=self. color_content_bg)
         self.content.pack(side=RIGHT, fill=BOTH, expand=True)
 
         self._build_sidebar()
@@ -122,13 +138,92 @@ class AdminDashboard:
         # start
         self.show_home()
 
+    # ------------- THEME TOGGLE -------------
+    def toggle_theme(self):
+        """Toggle between light and dark theme"""
+        self.current_theme = "dark" if self.current_theme == "light" else "light"
+        save_theme_preference(self.current_theme)
+        self.theme_colors = get_theme_colors(self.current_theme)
+        
+        # Update colors
+        self.color_sidebar_bg = self.theme_colors.get("sidebar_bg", "#050816")
+        self.color_sidebar_btn = self.theme_colors.get("sidebar_btn", "#111827")
+        self.color_sidebar_btn_active = self.theme_colors.get("sidebar_btn_active", "#1f2937")
+        self.color_content_bg = self.theme_colors.get("content_bg", "#f9fafb")
+        self.color_accent = self.theme_colors.get("accent", "#2563eb")
+        self.color_text_primary = self.theme_colors.get("text_primary", "#111827")
+        self.color_text_secondary = self.theme_colors.get("text_secondary", "#6b7280")
+        self.color_card_bg = self.theme_colors.get("card_bg", "#ffffff")
+        
+        # Update root background
+        self.root.config(bg=self.color_content_bg)
+        
+        # Update treeview style
+        try:
+            style = ttk. Style(self.root)
+            style.configure(
+                "Admin.Treeview",
+                background=self.theme_colors. get("treeview_bg", "#0b0707"),
+                foreground=self.theme_colors.get("treeview_fg", "#111827"),
+                fieldbackground=self.theme_colors.get("treeview_bg", "#160e0e"),
+                rowheight=22,
+                padding=(2, 1),
+                borderwidth=1
+            )
+            style.configure(
+                "Admin.Treeview.Heading",
+                background=self.color_sidebar_btn,
+                foreground="#070101",
+                padding=(4, 2),
+                borderwidth=1
+            )
+            style.map(
+                "Admin. Treeview",
+                background=[("selected", self.theme_colors.get("treeview_selected_bg", "#2563eb"))],
+                foreground=[("selected", self.theme_colors. get("treeview_selected_fg", "#ffffff"))]
+            )
+        except Exception:
+            pass
+        
+        # Rebuild UI
+        self. sidebar.destroy()
+        self.content.destroy()
+        
+        self.sidebar = Frame(self.root, bg=self.color_sidebar_bg, width=240)
+        self.sidebar.pack(side=LEFT, fill=Y)
+
+        self.content = Frame(self.root, bg=self.color_content_bg)
+        self.content.pack(side=RIGHT, fill=BOTH, expand=True)
+        
+        self._build_sidebar()
+        self. show_home()
+
     # ---------------- UI helpers ----------------
     def _build_sidebar(self):
+        # Theme toggle button at the top
+        toggle_bg = "#f0f0f0" if self.current_theme == "light" else "#2d3748"
+        toggle_fg = "#333333" if self.current_theme == "light" else "#e2e8f0"
+        
+        self.theme_toggle_btn = Button(
+            self.sidebar,
+            text="🌙" if self.current_theme == "light" else "☀️",
+            font=("Arial", 14),
+            bg=toggle_bg,
+            fg=toggle_fg,
+            relief=FLAT,
+            bd=0,
+            cursor="hand2",
+            command=self.toggle_theme,
+            width=3,
+            height=1
+        )
+        self.theme_toggle_btn.pack(pady=(10, 0))
+        
         Label(
             self.sidebar,
             text="Admin Menu",
             fg="white",
-            bg=self.color_sidebar_bg,
+            bg=self. color_sidebar_bg,
             font=("Arial", 16, "bold"),
             pady=20
         ).pack()
@@ -141,6 +236,8 @@ class AdminDashboard:
             ("Create Booking", self.show_create_booking),
             ("Create Driver", self.show_create_driver),
             ("Profile", self.show_profile),
+            ("Settings", self.show_settings),
+            ("Support", self.show_support),
         ]
 
         for text, cmd in btns:
@@ -178,8 +275,8 @@ class AdminDashboard:
     # ------------- Treeview helpers -------------
     def _make_treeview_sortable(self, tree, cols, numeric_cols=None):
         """
-        Enable click-to-sort on ttk.Treeview headers.
-        numeric_cols: iterable of column ids that should sort numerically.
+        Enable click-to-sort on ttk.Treeview headers. 
+        numeric_cols: iterable of column ids that should sort numerically. 
         """
         if numeric_cols is None:
             numeric_cols = set()
@@ -192,7 +289,7 @@ class AdminDashboard:
                     return int(val)
                 except Exception:
                     return 0
-            return val.lower() if isinstance(val, str) else val
+            return val. lower() if isinstance(val, str) else val
 
         def _sort(col, reverse=False):
             data = [(tree.set(k, col), k) for k in tree.get_children("")]
@@ -209,7 +306,7 @@ class AdminDashboard:
         """Load image from path, crop to circle, return PhotoImage."""
         try:
             img = Image.open(path).convert("RGBA")
-            img = img.resize(size, Image.LANCZOS)
+            img = img.resize(size, Image. LANCZOS)
 
             mask = Image.new("L", size, 0)
             draw = ImageDraw.Draw(mask)
@@ -242,7 +339,7 @@ class AdminDashboard:
             text="Manage your taxi booking system efficiently",
             font=("Arial", 12),
             bg=self.color_content_bg,
-            fg="#6b7280"
+            fg=self.color_text_secondary
         ).pack(pady=(5, 0))
 
         # Stats Cards Container
@@ -258,33 +355,31 @@ class AdminDashboard:
             total_customers = total_drivers = total_bookings = 0
 
         # Stat Card 1: Customers
-        card1 = Frame(stats_container, bg="white", relief="flat", bd=1)
+        card1 = Frame(stats_container, bg=self.color_card_bg, relief="flat", bd=1)
         card1.pack(side=LEFT, padx=10, fill=BOTH, expand=True)
-        card1_inner = Frame(card1, bg="white")
+        card1_inner = Frame(card1, bg=self.color_card_bg)
         card1_inner.pack(padx=20, pady=20, fill=BOTH)
-        Label(card1_inner, text="👥", font=("Arial", 32), bg="white").pack()
-        Label(card1_inner, text=str(total_customers), font=("Arial", 32, "bold"), bg="white", fg="#2563eb").pack()
-        Label(card1_inner, text="Customers", font=("Arial", 12), bg="white", fg="#6b7280").pack()
+        Label(card1_inner, text="👥", font=("Arial", 32), bg=self.color_card_bg).pack()
+        Label(card1_inner, text=str(total_customers), font=("Arial", 32, "bold"), bg=self.color_card_bg, fg="#2563eb").pack()
+        Label(card1_inner, text="Customers", font=("Arial", 12), bg=self.color_card_bg, fg=self. color_text_secondary).pack()
 
         # Stat Card 2: Drivers
-        card2 = Frame(stats_container, bg="white", relief="flat", bd=1)
+        card2 = Frame(stats_container, bg=self.color_card_bg, relief="flat", bd=1)
         card2.pack(side=LEFT, padx=10, fill=BOTH, expand=True)
-        card2_inner = Frame(card2, bg="white")
+        card2_inner = Frame(card2, bg=self.color_card_bg)
         card2_inner.pack(padx=20, pady=20, fill=BOTH)
-        Label(card2_inner, text="🚗", font=("Arial", 32), bg="white").pack()
-        Label(card2_inner, text=str(total_drivers), font=("Arial", 32, "bold"), bg="white", fg="#16a34a").pack()
-        Label(card2_inner, text="Drivers", font=("Arial", 12), bg="white", fg="#6b7280").pack()
+        Label(card2_inner, text="🚗", font=("Arial", 32), bg=self.color_card_bg).pack()
+        Label(card2_inner, text=str(total_drivers), font=("Arial", 32, "bold"), bg=self.color_card_bg, fg="#16a34a").pack()
+        Label(card2_inner, text="Drivers", font=("Arial", 12), bg=self.color_card_bg, fg=self.color_text_secondary).pack()
 
         # Stat Card 3: Bookings
-        card3 = Frame(stats_container, bg="white", relief="flat", bd=1)
+        card3 = Frame(stats_container, bg=self.color_card_bg, relief="flat", bd=1)
         card3.pack(side=LEFT, padx=10, fill=BOTH, expand=True)
-        card3_inner = Frame(card3, bg="white")
+        card3_inner = Frame(card3, bg=self.color_card_bg)
         card3_inner.pack(padx=20, pady=20, fill=BOTH)
-        Label(card3_inner, text="📋", font=("Arial", 32), bg="white").pack()
-        Label(card3_inner, text=str(total_bookings), font=("Arial", 32, "bold"), bg="white", fg="#dc2626").pack()
-        Label(card3_inner, text="Total Bookings", font=("Arial", 12), bg="white", fg="#6b7280").pack()
-
-        # Note: Quick booking section removed per request
+        Label(card3_inner, text="📋", font=("Arial", 32), bg=self.color_card_bg).pack()
+        Label(card3_inner, text=str(total_bookings), font=("Arial", 32, "bold"), bg=self.color_card_bg, fg="#dc2626").pack()
+        Label(card3_inner, text="Total Bookings", font=("Arial", 12), bg=self.color_card_bg, fg=self.color_text_secondary).pack()
 
     # ---------------- All bookings ----------------
     def show_all_bookings(self):
@@ -298,16 +393,19 @@ class AdminDashboard:
         ).pack(pady=10)
 
         # Search / filter bar
-        search_frame = Frame(self.content, bg=self.color_content_bg)
+        search_frame = Frame(self.content, bg=self. color_content_bg)
         search_frame.pack(fill=X, padx=10, pady=(0, 5))
 
-        Label(search_frame, text="Search:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
+        entry_fg = self.theme_colors. get("entry_fg", "#111827")
+
+        Label(search_frame, text="Search:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
         search_var = StringVar()
-        search_entry = Entry(search_frame, textvariable=search_var, width=22)
+        search_entry = Entry(search_frame, textvariable=search_var, width=22, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         search_entry.pack(side=LEFT, padx=(0, 10))
 
         # Status filter
-        Label(search_frame, text="Status:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        Label(search_frame, text="Status:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
         status_var = StringVar(value="All")
         status_cb = ttk.Combobox(
             search_frame,
@@ -319,15 +417,15 @@ class AdminDashboard:
         status_cb.pack(side=LEFT, padx=(0, 10))
 
         # Customer filter
-        Label(search_frame, text="Customer:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        Label(search_frame, text="Customer:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
         customer_var = StringVar()
-        customer_entry = Entry(search_frame, textvariable=customer_var, width=16)
+        customer_entry = Entry(search_frame, textvariable=customer_var, width=16, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         customer_entry.pack(side=LEFT, padx=(0, 10))
 
         # Driver filter
-        Label(search_frame, text="Driver:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        Label(search_frame, text="Driver:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
         driver_var = StringVar()
-        driver_entry = Entry(search_frame, textvariable=driver_var, width=16)
+        driver_entry = Entry(search_frame, textvariable=driver_var, width=16, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         driver_entry.pack(side=LEFT, padx=(0, 10))
 
         frame = Frame(self.content, bg=self.color_content_bg)
@@ -335,15 +433,19 @@ class AdminDashboard:
 
         cols = ("ID", "Customer", "Pickup", "Dropoff", "Date", "Time", "Status", "Driver")
         self.bookings_tree = ttk.Treeview(frame, columns=cols, show="headings", height=18, style="Admin.Treeview")
+        
         # row stripe tags
-        self.bookings_tree.tag_configure("evenrow", background="#ffffff")
-        self.bookings_tree.tag_configure("oddrow", background="#f3f4f6")
+        even_bg = self.theme_colors.get("treeview_even", "#ffffff")
+        odd_bg = self.theme_colors.get("treeview_odd", "#f3f4f6")
+        self.bookings_tree.tag_configure("evenrow", background=even_bg)
+        self.bookings_tree.tag_configure("oddrow", background=odd_bg)
+        
         for c in cols:
             self.bookings_tree.heading(c, text=c)
             if c == "ID":
                 self.bookings_tree.column(c, width=55, anchor=CENTER, stretch=False)
             elif c in ("Date", "Time"):
-                self.bookings_tree.column(c, width=80, anchor=CENTER, stretch=False)
+                self. bookings_tree.column(c, width=80, anchor=CENTER, stretch=False)
             elif c == "Status":
                 self.bookings_tree.column(c, width=90, anchor=CENTER, stretch=False)
             elif c == "Customer":
@@ -352,8 +454,8 @@ class AdminDashboard:
                 self.bookings_tree.column(c, width=120, stretch=True)
             elif c == "Pickup":
                 self.bookings_tree.column(c, width=140, stretch=True)
-            elif c == "Dropoff":
-                self.bookings_tree.column(c, width=140, stretch=True)
+            elif c == "Dropoff": 
+                self.bookings_tree. column(c, width=140, stretch=True)
         self.bookings_tree.pack(fill=BOTH, expand=True, side=LEFT)
 
         scroll = ttk.Scrollbar(frame, orient=VERTICAL, command=self.bookings_tree.yview)
@@ -361,7 +463,7 @@ class AdminDashboard:
         self.bookings_tree.configure(yscrollcommand=scroll.set)
 
         # Make sortable
-        self._make_treeview_sortable(self.bookings_tree, cols, numeric_cols={"ID"})
+        self._make_treeview_sortable(self. bookings_tree, cols, numeric_cols={"ID"})
 
         btn_frame = Frame(self.content, bg=self.color_content_bg)
         btn_frame.pack(pady=8)
@@ -374,7 +476,7 @@ class AdminDashboard:
         try:
             bookings = self.service.get_all_bookings()
             self._all_bookings_cache = bookings or []
-        except Exception as e:
+        except Exception as e: 
             messagebox.showerror("Error", str(e))
 
         def _refresh_tree(filtered=None):
@@ -393,13 +495,13 @@ class AdminDashboard:
                     b.get("driver"),
                 ]
                 tag = "evenrow" if idx % 2 == 0 else "oddrow"
-                self.bookings_tree.insert("", END, values=vals, tags=(tag,))
+                self. bookings_tree.insert("", END, values=vals, tags=(tag,))
 
         def _apply_filters(*_):
             text = (search_var.get() or "").strip().lower()
             status_filter = (status_var.get() or "All").strip().lower()
             cust_filter = (customer_var.get() or "").strip().lower()
-            driver_filter = (driver_var.get() or "").strip().lower()
+            driver_filter = (driver_var. get() or "").strip().lower()
 
             filtered = []
             for b in self._all_bookings_cache:
@@ -414,7 +516,7 @@ class AdminDashboard:
                 driver = str(b.get("driver", ""))
 
                 # free-text search across all fields
-                if text:
+                if text: 
                     combined = " ".join(
                         [str(bid), customer, pickup, dropoff, date_str, time_str, status, driver]
                     ).lower()
@@ -423,11 +525,11 @@ class AdminDashboard:
 
                 # status filter (except "All")
                 if status_filter and status_filter != "all":
-                    if status.lower() != status_filter:
+                    if status. lower() != status_filter:
                         continue
 
                 # customer filter (substring)
-                if cust_filter and cust_filter not in customer.lower():
+                if cust_filter and cust_filter not in customer. lower():
                     continue
 
                 # driver filter (substring)
@@ -447,8 +549,8 @@ class AdminDashboard:
         _refresh_tree()
 
     def cancel_selected_booking(self):
-        sel = self.bookings_tree.selection()
-        if not sel:
+        sel = self.bookings_tree. selection()
+        if not sel: 
             messagebox.showwarning("Select", "Select a booking to cancel.")
             return
         booking_id = self.bookings_tree.item(sel[0])["values"][0]
@@ -457,7 +559,7 @@ class AdminDashboard:
         try:
             self.service.cancel_booking(booking_id)
             messagebox.showinfo("Success", "Booking cancelled.")
-            self.show_all_bookings()
+            self. show_all_bookings()
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
@@ -469,24 +571,20 @@ class AdminDashboard:
             text="Assign Driver",
             font=("Arial", 20, "bold"),
             bg=self.color_content_bg,
-            fg=self.color_accent
+            fg=self. color_accent
         ).pack(pady=10)
 
         frame = Frame(self.content, bg=self.color_content_bg)
         frame.pack(pady=20, padx=16, fill=X)
 
-        label_opts = {"bg": self.color_content_bg, "anchor": "w", "font": ("Arial", 11), "width": 16}
+        entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
+        entry_fg = self.theme_colors.get("entry_fg", "#111827")
+
+        label_opts = {"bg": self.color_content_bg, "fg": self.color_text_primary, "anchor": "w", "font": ("Arial", 11), "width": 16}
         entry_pad = {"padx": 8, "pady": 6, "sticky": "w"}
 
         Label(frame, text="Booking ID:", **label_opts).grid(row=0, column=0, **entry_pad)
-        booking_id_entry = Entry(frame, width=24)
-        booking_id_entry.grid(row=0, column=1, **entry_pad)
-
-        Label(frame, text="Driver:", **label_opts).grid(row=1, column=0, **entry_pad)
-        driver_cb = ttk.Combobox(frame, width=52, state="readonly")
-        driver_cb.grid(row=1, column=1, **entry_pad)
-        Label(frame, text="Booking ID:", **label_opts).grid(row=0, column=0, **entry_pad)
-        booking_id_entry = Entry(frame, width=24)
+        booking_id_entry = Entry(frame, width=24, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         booking_id_entry.grid(row=0, column=1, **entry_pad)
 
         Label(frame, text="Driver:", **label_opts).grid(row=1, column=0, **entry_pad)
@@ -508,16 +606,16 @@ class AdminDashboard:
         def assign():
             disp = driver_cb.get()
             bid = booking_id_entry.get().strip()
-            if not bid:
+            if not bid: 
                 return messagebox.showwarning("Error", "Enter booking id.")
-            if not disp:
+            if not disp: 
                 return messagebox.showwarning("Error", "Select driver.")
             try:
                 booking_id = int(bid)
-            except:
+            except: 
                 return messagebox.showwarning("Error", "Invalid booking id.")
             sel = driver_cb._value_map.get(disp)
-            if not sel:
+            if not sel: 
                 return messagebox.showwarning("Error", "Invalid driver selected.")
             source, ident = sel
 
@@ -527,7 +625,7 @@ class AdminDashboard:
                 booking_id_entry.delete(0, END)
                 driver_cb.set("")
             except ValueError as e:
-                messagebox.showerror("Error", str(e))
+                messagebox. showerror("Error", str(e))
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
@@ -541,18 +639,22 @@ class AdminDashboard:
             text="Customers & Users",
             font=("Arial", 20, "bold"),
             bg=self.color_content_bg,
-            fg=self.color_accent
+            fg=self. color_accent
         ).pack(pady=10)
 
         # Search / filters
-        search_frame = Frame(self.content, bg=self.color_content_bg)
+        search_frame = Frame(self.content, bg=self. color_content_bg)
         search_frame.pack(fill=X, padx=10, pady=(0, 5))
-        Label(search_frame, text="Search:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        
+        entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
+        entry_fg = self.theme_colors.get("entry_fg", "#111827")
+        
+        Label(search_frame, text="Search:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
         search_var = StringVar()
-        search_entry = Entry(search_frame, textvariable=search_var, width=22)
+        search_entry = Entry(search_frame, textvariable=search_var, width=22, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         search_entry.pack(side=LEFT, padx=(0, 10))
 
-        Label(search_frame, text="Role:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        Label(search_frame, text="Role:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
         role_var = StringVar(value="All")
         role_cb = ttk.Combobox(
             search_frame,
@@ -563,9 +665,9 @@ class AdminDashboard:
         )
         role_cb.pack(side=LEFT, padx=(0, 10))
 
-        Label(search_frame, text="Phone:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        Label(search_frame, text="Phone:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
         phone_var = StringVar()
-        phone_entry = Entry(search_frame, textvariable=phone_var, width=16)
+        phone_entry = Entry(search_frame, textvariable=phone_var, width=16, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         phone_entry.pack(side=LEFT, padx=(0, 10))
 
         frame = Frame(self.content, bg=self.color_content_bg)
@@ -573,9 +675,13 @@ class AdminDashboard:
 
         cols = ("ID", "Name", "Email", "Phone", "Address", "Role")
         self.customers_tree = ttk.Treeview(frame, columns=cols, show="headings", height=18, style="Admin.Treeview")
+        
         # row stripe tags
-        self.customers_tree.tag_configure("evenrow", background="#ffffff")
-        self.customers_tree.tag_configure("oddrow", background="#f3f4f6")
+        even_bg = self. theme_colors.get("treeview_even", "#ffffff")
+        odd_bg = self.theme_colors.get("treeview_odd", "#f3f4f6")
+        self.customers_tree.tag_configure("evenrow", background=even_bg)
+        self.customers_tree. tag_configure("oddrow", background=odd_bg)
+        
         for c in cols:
             self.customers_tree.heading(c, text=c)
             if c == "ID":
@@ -597,9 +703,9 @@ class AdminDashboard:
         self.customers_tree.configure(yscrollcommand=scroll.set)
 
         # Make sortable
-        self._make_treeview_sortable(self.customers_tree, cols, numeric_cols={"ID"})
+        self._make_treeview_sortable(self. customers_tree, cols, numeric_cols={"ID"})
 
-        btn_frame = Frame(self.content, bg=self.color_content_bg)
+        btn_frame = Frame(self. content, bg=self.color_content_bg)
         btn_frame.pack(pady=8)
         Button(btn_frame, text="Refresh", width=12, command=self.show_customers).pack(side=LEFT, padx=6)
         Button(btn_frame, text="Edit", width=12, bg=self.color_accent, fg="white",
@@ -623,16 +729,16 @@ class AdminDashboard:
                 while len(vals) < 6:
                     vals.append("")
                 tag = "evenrow" if idx % 2 == 0 else "oddrow"
-                self.customers_tree.insert("", END, values=vals[:6], tags=(tag,))
+                self. customers_tree.insert("", END, values=vals[: 6], tags=(tag,))
 
         def _apply_filters(*_):
             text = (search_var.get() or "").strip().lower()
             role = (role_var.get() or "All").strip().lower()
-            phone = (phone_var.get() or "").strip().lower()
+            phone = (phone_var. get() or "").strip().lower()
 
             filtered = []
             for r in self._all_customers_cache:
-                # r: (id, name, email, phone, address, role)
+                # r:  (id, name, email, phone, address, role)
                 rid = r[0] if len(r) > 0 else ""
                 name = r[1] if len(r) > 1 else ""
                 email = r[2] if len(r) > 2 else ""
@@ -664,10 +770,10 @@ class AdminDashboard:
 
     def edit_selected_customer(self):
         sel = self.customers_tree.selection()
-        if not sel:
+        if not sel: 
             messagebox.showwarning("Select", "Select a customer to edit.")
             return
-        customer_id = self.customers_tree.item(sel[0])["values"][0]
+        customer_id = self.customers_tree. item(sel[0])["values"][0]
         self.edit_customer_form(customer_id, refresh_func=self.show_customers)
 
     def edit_customer_form(self, customer_id, refresh_func=None):
@@ -678,7 +784,7 @@ class AdminDashboard:
             return
 
         if not row:
-            messagebox.showerror("Error", "Customer not found.")
+            messagebox. showerror("Error", "Customer not found.")
             return
 
         form = Toplevel(self.root)
@@ -703,12 +809,12 @@ class AdminDashboard:
             new_role = entries["Role"].get().strip() or "Customer"
             try:
                 self.service.update_user(customer_id, new_name, new_phone, new_address, new_role)
-                messagebox.showinfo("Success", "User updated.")
+                messagebox. showinfo("Success", "User updated.")
                 form.destroy()
                 if refresh_func:
                     refresh_func()
             except ValueError as e:
-                messagebox.showwarning("Validation", str(e))
+                messagebox. showwarning("Validation", str(e))
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
@@ -717,8 +823,8 @@ class AdminDashboard:
         )
 
     def delete_selected_customer(self):
-        sel = self.customers_tree.selection()
-        if not sel:
+        sel = self.customers_tree. selection()
+        if not sel: 
             messagebox.showwarning("Select", "Select a customer to delete.")
             return
         customer_id = self.customers_tree.item(sel[0])["values"][0]
@@ -742,10 +848,13 @@ class AdminDashboard:
             fg=self.color_accent
         ).pack(pady=10)
 
-        frame = Frame(self.content, bg=self.color_content_bg)
+        frame = Frame(self.content, bg=self. color_content_bg)
         frame.pack(pady=10, padx=16, fill=X)
 
-        label_opts = {"bg": self.color_content_bg, "anchor": "w", "font": ("Arial", 11), "width": 18}
+        entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
+        entry_fg = self.theme_colors.get("entry_fg", "#111827")
+
+        label_opts = {"bg": self. color_content_bg, "fg": self.color_text_primary, "anchor": "w", "font": ("Arial", 11), "width": 18}
         entry_pad = {"padx": 8, "pady": 6, "sticky": "w"}
 
         Label(frame, text="Customer:", **label_opts).grid(row=0, column=0, **entry_pad)
@@ -758,36 +867,36 @@ class AdminDashboard:
             customer_cb["values"] = options
             customer_map = {options[i]: customers[i][0] for i in range(len(options))}
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox. showerror("Error", str(e))
             customer_map = {}
 
         Label(frame, text="Pickup:", **label_opts).grid(row=1, column=0, **entry_pad)
-        pickup_ent = Entry(frame, width=48)
+        pickup_ent = Entry(frame, width=48, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         pickup_ent.grid(row=1, column=1, **entry_pad)
 
         Label(frame, text="Dropoff:", **label_opts).grid(row=2, column=0, **entry_pad)
-        drop_ent = Entry(frame, width=48)
+        drop_ent = Entry(frame, width=48, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         drop_ent.grid(row=2, column=1, **entry_pad)
 
         Label(frame, text="Date (YYYY-MM-DD):", **label_opts).grid(row=3, column=0, **entry_pad)
-        date_ent = Entry(frame, width=22)
+        date_ent = Entry(frame, width=22, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         date_ent.insert(0, datetime.now().strftime("%Y-%m-%d"))
         date_ent.grid(row=3, column=1, sticky="w", padx=8, pady=6)
 
         Label(frame, text="Time (HH:MM):", **label_opts).grid(row=4, column=0, **entry_pad)
-        time_ent = Entry(frame, width=22)
-        time_ent.insert(0, datetime.now().strftime("%H:%M"))
+        time_ent = Entry(frame, width=22, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
+        time_ent.insert(0, datetime. now().strftime("%H:%M"))
         time_ent.grid(row=4, column=1, sticky="w", padx=8, pady=6)
 
         Label(frame, text="Taxi Type (optional):", **label_opts).grid(row=5, column=0, **entry_pad)
-        taxi_ent = Entry(frame, width=48)
+        taxi_ent = Entry(frame, width=48, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         taxi_ent.grid(row=5, column=1, **entry_pad)
 
         def submit_booking():
             sel = customer_cb.get()
-            if not sel:
+            if not sel: 
                 return messagebox.showwarning("Error", "Select a customer.")
-            customer_id = customer_map.get(sel)
+            customer_id = customer_map. get(sel)
             pickup = pickup_ent.get().strip()
             dropoff = drop_ent.get().strip()
             date_str = date_ent.get().strip()
@@ -806,7 +915,7 @@ class AdminDashboard:
                 date_ent.insert(0, datetime.now().strftime("%Y-%m-%d"))
                 time_ent.insert(0, datetime.now().strftime("%H:%M"))
             except ValueError as e:
-                messagebox.showwarning("Validation", str(e))
+                messagebox. showwarning("Validation", str(e))
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
@@ -827,38 +936,41 @@ class AdminDashboard:
             self.content,
             text="Create Driver",
             font=("Arial", 18, "bold"),
-            bg=self.color_content_bg,
+            bg=self. color_content_bg,
             fg=self.color_accent
         ).pack(pady=10)
 
-        frame = Frame(self.content, bg=self.color_content_bg)
+        frame = Frame(self. content, bg=self.color_content_bg)
         frame.pack(pady=10, padx=16, fill=X)
 
-        label_opts = {"bg": self.color_content_bg, "anchor": "w", "font": ("Arial", 11), "width": 18}
+        entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
+        entry_fg = self.theme_colors. get("entry_fg", "#111827")
+
+        label_opts = {"bg": self.color_content_bg, "fg": self. color_text_primary, "anchor": "w", "font": ("Arial", 11), "width": 18}
         entry_pad = {"padx": 8, "pady": 6, "sticky": "w"}
 
         Label(frame, text="Full Name:", **label_opts).grid(row=0, column=0, **entry_pad)
-        name_ent = Entry(frame, width=44)
+        name_ent = Entry(frame, width=44, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         name_ent.grid(row=0, column=1, **entry_pad)
 
         Label(frame, text="Email:", **label_opts).grid(row=1, column=0, **entry_pad)
-        email_ent = Entry(frame, width=44)
+        email_ent = Entry(frame, width=44, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         email_ent.grid(row=1, column=1, **entry_pad)
 
         Label(frame, text="Phone:", **label_opts).grid(row=2, column=0, **entry_pad)
-        phone_ent = Entry(frame, width=44)
+        phone_ent = Entry(frame, width=44, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         phone_ent.grid(row=2, column=1, **entry_pad)
 
         Label(frame, text="License Num:", **label_opts).grid(row=3, column=0, **entry_pad)
-        lic_ent = Entry(frame, width=44)
+        lic_ent = Entry(frame, width=44, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         lic_ent.grid(row=3, column=1, **entry_pad)
 
         Label(frame, text="Registration Num:", **label_opts).grid(row=4, column=0, **entry_pad)
-        reg_ent = Entry(frame, width=44)
+        reg_ent = Entry(frame, width=44, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         reg_ent.grid(row=4, column=1, **entry_pad)
 
         Label(frame, text="Password:", **label_opts).grid(row=5, column=0, **entry_pad)
-        pass_ent = Entry(frame, width=44, show="*")
+        pass_ent = Entry(frame, width=44, show="*", bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         pass_ent.grid(row=5, column=1, **entry_pad)
 
         def submit_driver():
@@ -877,9 +989,9 @@ class AdminDashboard:
                 lic_ent.delete(0, END)
                 reg_ent.delete(0, END)
                 pass_ent.delete(0, END)
-            except ValueError as e:
+            except ValueError as e: 
                 messagebox.showwarning("Validation", str(e))
-            except Exception as e:
+            except Exception as e: 
                 messagebox.showerror("Error", str(e))
 
         Button(
@@ -905,7 +1017,7 @@ class AdminDashboard:
         ).pack(pady=20)
 
         if not self.admin_id:
-            messagebox.showerror("Error", "Admin ID not available. Cannot load profile.")
+            messagebox.showerror("Error", "Admin ID not available.  Cannot load profile.")
             return
 
         try:
@@ -965,11 +1077,11 @@ class AdminDashboard:
                         tags="avatar_img"
                     )
                     return
-            # fallback: first letter
+            # fallback:  first letter
             avatar_canvas.create_text(
                 center_x,
                 center_y,
-                text=(full_name[:1].upper() if full_name else "?"),
+                text=(full_name[: 1]. upper() if full_name else "? "),
                 font=("Arial", 32, "bold"),
                 fill="#4b5563",
                 tags="avatar_initial"
@@ -979,7 +1091,7 @@ class AdminDashboard:
 
         def upload_photo():
             filetypes = [
-                ("Image files", "*.png *.jpg *.jpeg *.gif *.bmp"),
+                ("Image files", "*.png *.jpg *.jpeg *. gif *.bmp"),
                 ("All files", "*.*"),
             ]
             filepath = filedialog.askopenfilename(
@@ -1001,7 +1113,7 @@ class AdminDashboard:
 
                 self.photo_path = dest_path
                 self.service.update_photo_path(dest_path)
-                messagebox.showinfo("Success", "Profile photo updated.")
+                messagebox. showinfo("Success", "Profile photo updated.")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to update photo: {e}")
                 return
@@ -1021,6 +1133,9 @@ class AdminDashboard:
         frame = Frame(self.content, bg=self.color_content_bg)
         frame.pack(pady=10)
 
+        entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
+        entry_fg = self.theme_colors.get("entry_fg", "#111827")
+
         labels = ["Full Name", "Email", "Phone", "Address", "Gender", "Role"]
         values = [full_name, email, phone, address, gender, role]
         entries = {}
@@ -1030,10 +1145,11 @@ class AdminDashboard:
                 frame,
                 text=lab,
                 bg=self.color_content_bg,
+                fg=self.color_text_primary,
                 font=("Arial", 12)
             ).grid(row=i, column=0, padx=10, pady=7, sticky="w")
 
-            ent = Entry(frame, width=30, font=("Arial", 12))
+            ent = Entry(frame, width=30, font=("Arial", 12), bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
             ent.insert(0, values[i] if values[i] is not None else "")
 
             if lab in ["Email", "Gender", "Role"]:
@@ -1051,11 +1167,11 @@ class AdminDashboard:
                 messagebox.showwarning("Warning", "All fields are required!")
                 return
 
-            try:
+            try: 
                 self.service.update_profile(new_name, new_phone, new_address)
-                messagebox.showinfo("Success", "Profile updated successfully!")
+                messagebox. showinfo("Success", "Profile updated successfully!")
             except ValueError as e:
-                messagebox.showwarning("Warning", str(e))
+                messagebox. showwarning("Warning", str(e))
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to update profile: {e}")
 
@@ -1083,7 +1199,7 @@ class AdminDashboard:
                     self.root.destroy()
             except Exception:
                 try:
-                    self.root.destroy()
+                    self.root. destroy()
                 except Exception:
                     pass
 
@@ -1094,8 +1210,8 @@ class AdminDashboard:
         except Exception:
             pass
         try:
-            self.content.destroy()
-        except Exception:
+            self.content. destroy()
+        except Exception: 
             pass
 
     # ---------------- Settings & Support ----------------
@@ -1109,25 +1225,27 @@ class AdminDashboard:
             fg=self.color_accent
         ).pack(pady=20)
 
-        frame = Frame(self.content, bg=self.color_content_bg)
+        frame = Frame(self.content, bg=self. color_content_bg)
         frame.pack(pady=10, padx=16, fill=X)
 
         Label(frame, text="Notification Preferences", bg=self.color_content_bg,
-              font=("Arial", 12, "bold")).grid(row=0, column=0, sticky="w", padx=8, pady=6)
+              fg=self.color_text_primary, font=("Arial", 12, "bold")).grid(row=0, column=0, sticky="w", padx=8, pady=6)
 
         self.email_notif_var = BooleanVar(value=True)
         self.sms_notif_var = BooleanVar(value=True)
 
         Checkbutton(frame, text="Email notifications", variable=self.email_notif_var,
-                    bg=self.color_content_bg).grid(row=1, column=0, sticky="w", padx=20, pady=4)
+                    bg=self.color_content_bg, fg=self.color_text_primary,
+                    selectcolor=self.color_card_bg).grid(row=1, column=0, sticky="w", padx=20, pady=4)
         Checkbutton(frame, text="SMS notifications", variable=self.sms_notif_var,
-                    bg=self.color_content_bg).grid(row=2, column=0, sticky="w", padx=20, pady=4)
+                    bg=self. color_content_bg, fg=self.color_text_primary,
+                    selectcolor=self. color_card_bg).grid(row=2, column=0, sticky="w", padx=20, pady=4)
 
         Label(
             frame,
-            text="(Placeholder settings — wire to DB if needed.)",
+            text="(Placeholder settings — wire to DB if needed. )",
             bg=self.color_content_bg,
-            fg="#6b7280"
+            fg=self.color_text_secondary
         ).grid(row=3, column=0, sticky="w", padx=8, pady=10)
 
     def show_support(self):
@@ -1145,14 +1263,15 @@ class AdminDashboard:
             text="If you face any issue with bookings, drivers, or users,\n"
                  "you can contact our support team.",
             font=("Arial", 12),
-            bg=self.color_content_bg,
+            bg=self. color_content_bg,
+            fg=self.color_text_primary,
             justify="center"
         ).pack(pady=10)
 
         Button(
             self.content,
             text="Contact Support",
-            bg=self.color_accent,
+            bg=self. color_accent,
             fg="white",
             width=20,
             height=2,
@@ -1169,3 +1288,9 @@ class AdminDashboard:
             "Or call: +977-9810000000"
         )
 
+
+if __name__ == "__main__":
+    from tkinter import Tk
+    root = Tk()
+    AdminDashboard(root, admin_id="admin@example.com")
+    root.mainloop()

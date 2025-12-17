@@ -1,8 +1,10 @@
 from tkinter import *
 from tkinter import ttk, messagebox, filedialog
 from PIL import Image, ImageTk, ImageDraw
-import os
-from Rider_Dashboard.rider_service import RiderService
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from theme_manager import get_theme_colors, save_theme_preference, get_theme_preference
+from Rider_Dashboard. rider_service import RiderService
 
 
 class RiderDashboard:
@@ -33,33 +35,52 @@ class RiderDashboard:
         # Cache for image reference
         self.profile_img_tk = None
 
-        # Color scheme (matching customer dashboard)
-        self.color_sidebar_bg = "#050816"
-        self.color_sidebar_btn = "#111827"
-        self.color_sidebar_btn_active = "#1f2937"
-        self.color_content_bg = "#f9fafb"
-        self.color_accent = "#2563eb"
+        # Theme management
+        self.current_theme = get_theme_preference()
+        self.theme_colors = get_theme_colors(self.current_theme)
+        self.theme_toggle_btn = None
+
+        # Color scheme from theme
+        self.color_sidebar_bg = self.theme_colors.get("sidebar_bg", "#050816")
+        self.color_sidebar_btn = self.theme_colors.get("sidebar_btn", "#111827")
+        self.color_sidebar_btn_active = self.theme_colors.get("sidebar_btn_active", "#1f2937")
+        self.color_content_bg = self.theme_colors.get("content_bg", "#f9fafb")
+        self.color_accent = self.theme_colors.get("accent", "#2563eb")
+        self.color_text_primary = self.theme_colors.get("text_primary", "#111827")
+        self.color_text_secondary = self.theme_colors.get("text_secondary", "#6b7280")
+        self.color_card_bg = self.theme_colors.get("card_bg", "#ffffff")
 
         # window setup
         try:
             self.root.title(f"Driver Dashboard - {self.username}")
-            self.root.geometry("1000x600")
+            self.root.geometry("1100x650")
         except Exception:
             pass
         self.root.configure(bg=self.color_content_bg)
 
-        # -------- TABLE STYLE (for trips list) --------
+        # -------- ULTRA COMPACT TABLE STYLE --------
         try:
             style = ttk.Style(self.root)
             style.configure(
-                "Rider.Treeview",
-                rowheight=22,
-                padding=(2, 1),
+                "Rider. Treeview",
+                background=self.theme_colors.get("treeview_bg", "#0e0b0b"),
+                foreground=self. theme_colors.get("treeview_fg", "#111827"),
+                fieldbackground=self. theme_colors.get("treeview_bg", "#ffffff"),
+                rowheight=16,  # ULTRA COMPACT
+                padding=(0, 0),  # MINIMAL padding
+                font=("Arial", 8)  # Smaller font
             )
             style.configure(
-                "Rider.Treeview.Heading",
-                padding=(4, 2),
+                "Rider. Treeview.Heading",
+                background=self.color_sidebar_btn,
+                foreground="#100e0e",  # White bold text
+                padding=(2, 1),
+                font=("Arial", 9, "bold"),  # BOLD headings
+                relief="flat"
             )
+            style.map("Rider.Treeview",
+                     background=[('selected', self.theme_colors.get("treeview_selected_bg", "#2563eb"))],
+                     foreground=[('selected', self.theme_colors.get("treeview_selected_fg", "#060101"))])
         except Exception:
             pass
 
@@ -70,7 +91,7 @@ class RiderDashboard:
 
         # Main content
         self.main_frame = Frame(self.root, bg=self.color_content_bg)
-        self.main_frame.pack(side=RIGHT, fill=BOTH, expand=True)
+        self.main_frame. pack(side=RIGHT, fill=BOTH, expand=True)
 
         # Menu (File / Edit / View / Tools / Help)
         self.mainmenu = Menu(self.root)
@@ -79,7 +100,7 @@ class RiderDashboard:
         filemenu.add_command(label='New', command=self._do_nothing)
         filemenu.add_command(label='Open', command=self._do_nothing)
         filemenu.add_command(label='Save', command=self._do_nothing)
-        filemenu.add_command(label='Save as...', command=self._do_nothing)
+        filemenu.add_command(label='Save as... ', command=self._do_nothing)
         filemenu.add_command(label='Close', command=self._do_nothing)
         filemenu.add_separator()
         filemenu.add_command(label='Exit', command=self._on_logout)
@@ -95,7 +116,7 @@ class RiderDashboard:
         self.mainmenu.add_cascade(label='Edit', menu=editmenu)
 
         viewmenu = Menu(self.mainmenu, tearoff=0)
-        viewmenu.add_command(label='Dashboard', command=self.show_dashboard)
+        viewmenu.add_command(label='Dashboard', command=self. show_dashboard)
         viewmenu.add_command(label='My Trips', command=self.show_trips)
         viewmenu.add_command(label='Profile', command=self.show_profile)
         viewmenu.add_command(label='Settings', command=self.show_settings)
@@ -107,6 +128,7 @@ class RiderDashboard:
         toolsmenu.add_command(label='Settings', command=self.show_settings)
         toolsmenu.add_command(label='Support', command=self.show_support)
         toolsmenu.add_command(label='Export Data', command=self._do_nothing)
+        toolsmenu.add_command(label='Toggle Theme', command=self.toggle_theme)
         self.mainmenu.add_cascade(label='Tools', menu=toolsmenu)
 
         helpmenu = Menu(self.mainmenu, tearoff=0)
@@ -120,13 +142,91 @@ class RiderDashboard:
         # Start on trips
         self.show_trips()
 
+    # ------------- THEME TOGGLE (NO POPUP) -------------
+    def toggle_theme(self):
+        """Toggle between light and dark theme"""
+        self.current_theme = "dark" if self.current_theme == "light" else "light"
+        save_theme_preference(self.current_theme)
+        self.theme_colors = get_theme_colors(self.current_theme)
+        
+        # Update colors
+        self.color_sidebar_bg = self.theme_colors.get("sidebar_bg", "#050816")
+        self.color_sidebar_btn = self.theme_colors.get("sidebar_btn", "#111827")
+        self.color_sidebar_btn_active = self.theme_colors.get("sidebar_btn_active", "#1f2937")
+        self.color_content_bg = self.theme_colors.get("content_bg", "#f9fafb")
+        self.color_accent = self.theme_colors.get("accent", "#2563eb")
+        self.color_text_primary = self.theme_colors.get("text_primary", "#111827")
+        self.color_text_secondary = self.theme_colors.get("text_secondary", "#6b7280")
+        self.color_card_bg = self.theme_colors.get("card_bg", "#ffffff")
+        
+        # Update root background
+        self.root.config(bg=self.color_content_bg)
+        
+        # Update treeview style - ULTRA COMPACT
+        try:
+            style = ttk. Style(self.root)
+            style.configure(
+                "Rider.Treeview",
+                background=self.theme_colors.get("treeview_bg", "#100101"),
+                foreground=self.theme_colors.get("treeview_fg", "#111827"),
+                fieldbackground=self.theme_colors.get("treeview_bg", "#ffffff"),
+                rowheight=16,  # ULTRA COMPACT
+                padding=(0, 0),
+                font=("Arial", 8)
+            )
+            style.configure(
+                "Rider.Treeview.Heading",
+                background=self.color_sidebar_btn,
+                foreground="#ffffff",
+                padding=(2, 1),
+                font=("Arial", 9, "bold"),
+                relief="flat"
+            )
+            style.map("Rider. Treeview",
+                     background=[('selected', self.theme_colors.get("treeview_selected_bg", "#2563eb"))],
+                     foreground=[('selected', self.theme_colors.get("treeview_selected_fg", "#ffffff"))])
+        except Exception:
+            pass
+        
+        # Rebuild UI
+        self. sidebar_frame.destroy()
+        self.main_frame.destroy()
+        
+        self.sidebar_frame = Frame(self.root, bg=self.color_sidebar_bg, width=220)
+        self.sidebar_frame.pack(side=LEFT, fill=Y)
+        self._create_sidebar()
+
+        self.main_frame = Frame(self.root, bg=self.color_content_bg)
+        self.main_frame.pack(side=RIGHT, fill=BOTH, expand=True)
+        
+        self.show_dashboard()
+
     # ---------------- UI pieces ----------------
     def _create_sidebar(self):
+        # Theme toggle button at the top
+        toggle_bg = "#f0f0f0" if self.current_theme == "light" else "#2d3748"
+        toggle_fg = "#333333" if self.current_theme == "light" else "#e2e8f0"
+        
+        self.theme_toggle_btn = Button(
+            self.sidebar_frame,
+            text="🌙" if self.current_theme == "light" else "☀️",
+            font=("Arial", 14),
+            bg=toggle_bg,
+            fg=toggle_fg,
+            relief=FLAT,
+            bd=0,
+            cursor="hand2",
+            command=self.toggle_theme,
+            width=3,
+            height=1
+        )
+        self.theme_toggle_btn.pack(pady=(10, 0))
+        
         Label(
             self.sidebar_frame,
             text="Driver Menu",
             fg="white",
-            bg=self.color_sidebar_bg,
+            bg=self. color_sidebar_bg,
             font=("Arial", 16, "bold"),
             pady=20
         ).pack()
@@ -169,10 +269,10 @@ class RiderDashboard:
         ).pack(side=BOTTOM, pady=20)
 
     def clear_main(self):
-        for widget in self.main_frame.winfo_children():
+        for widget in self.main_frame. winfo_children():
             widget.destroy()
 
-    # shared helper: sortable treeview
+    # shared helper:  sortable treeview
     def _make_treeview_sortable(self, tree, cols, numeric_cols=None):
         if numeric_cols is None:
             numeric_cols = set()
@@ -185,7 +285,7 @@ class RiderDashboard:
                     return int(val)
                 except Exception:
                     return 0
-            return val.lower() if isinstance(val, str) else val
+            return val. lower() if isinstance(val, str) else val
 
         def _sort(col, reverse=False):
             data = [(tree.set(k, col), k) for k in tree.get_children("")]
@@ -202,7 +302,7 @@ class RiderDashboard:
         """Load image from path, crop to circle, return PhotoImage."""
         try:
             img = Image.open(path).convert("RGBA")
-            img = img.resize(size, Image.LANCZOS)
+            img = img.resize(size, Image. LANCZOS)
 
             mask = Image.new("L", size, 0)
             draw = ImageDraw.Draw(mask)
@@ -233,7 +333,7 @@ class RiderDashboard:
             text="Snapshot of your driving activity",
             font=("Arial", 12),
             bg=self.color_content_bg,
-            fg="#6b7280"
+            fg=self.color_text_secondary
         ).pack()
 
         # Stats cards
@@ -249,13 +349,13 @@ class RiderDashboard:
             total_assigned = total_active = total_completed = 0
 
         def card(parent, emoji, value, label, color):
-            outer = Frame(parent, bg="white", relief="flat", bd=1)
+            outer = Frame(parent, bg=self.color_card_bg, relief="flat", bd=1)
             outer.pack(side=LEFT, padx=10, fill=BOTH, expand=True)
-            inner = Frame(outer, bg="white")
+            inner = Frame(outer, bg=self.color_card_bg)
             inner.pack(padx=20, pady=20, fill=BOTH)
-            Label(inner, text=emoji, font=("Arial", 30), bg="white").pack()
-            Label(inner, text=str(value), font=("Arial", 28, "bold"), bg="white", fg=color).pack()
-            Label(inner, text=label, font=("Arial", 12), bg="white", fg="#6b7280").pack()
+            Label(inner, text=emoji, font=("Arial", 30), bg=self.color_card_bg).pack()
+            Label(inner, text=str(value), font=("Arial", 28, "bold"), bg=self.color_card_bg, fg=color).pack()
+            Label(inner, text=label, font=("Arial", 12), bg=self.color_card_bg, fg=self.color_text_secondary).pack()
 
         card(cards, "🗂️", total_assigned, "Assigned", "#2563eb")
         card(cards, "🚗", total_active, "Active / Accepted", "#f59e0b")
@@ -263,108 +363,120 @@ class RiderDashboard:
 
         # Hint
         Label(
-            self.main_frame,
+            self. main_frame,
             text="Use the menu to view trips or manage your profile.",
             font=("Arial", 12),
             bg=self.color_content_bg,
-            fg="#4b5563"
+            fg=self.color_text_secondary
         ).pack(pady=(10, 0))
 
-    # ---------------- Trips view ----------------
+    # ---------------- ULTRA COMPACT Trips view ----------------
     def show_trips(self):
         self.clear_main()
         Label(
             self.main_frame,
             text="My Assigned Trips",
-            font=("Arial", 20, "bold"),
+            font=("Arial", 18, "bold"),
             bg=self.color_content_bg,
             fg=self.color_accent
-        ).pack(pady=10)
+        ).pack(pady=6)
 
-        # Search / filter bar
+        # ULTRA COMPACT Search / filter bar
         search_frame = Frame(self.main_frame, bg=self.color_content_bg)
-        search_frame.pack(fill=X, padx=12, pady=(0, 5))
-        Label(search_frame, text="Search:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        search_frame.pack(fill=X, padx=8, pady=(0, 2))
+        
+        entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
+        entry_fg = self.theme_colors. get("entry_fg", "#111827")
+        
+        Label(search_frame, text="Search:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 8)).pack(side=LEFT, padx=(0, 2))
         self.trips_search_var = StringVar()
-        search_entry = Entry(search_frame, textvariable=self.trips_search_var, width=22)
-        search_entry.pack(side=LEFT, padx=(0, 10))
+        search_entry = Entry(search_frame, textvariable=self. trips_search_var, width=14, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg, font=("Arial", 8))
+        search_entry.pack(side=LEFT, padx=(0, 4))
 
-        Label(search_frame, text="Status:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        Label(search_frame, text="Status:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 8)).pack(side=LEFT, padx=(0, 2))
         self.trips_status_var = StringVar(value="All")
         status_cb = ttk.Combobox(
             search_frame,
             textvariable=self.trips_status_var,
             values=["All", "Pending", "Accepted", "Completed", "Cancelled"],
-            width=12,
+            width=8,
             state="readonly",
+            font=("Arial", 8)
         )
-        status_cb.pack(side=LEFT, padx=(0, 10))
+        status_cb.pack(side=LEFT, padx=(0, 4))
 
-        Label(search_frame, text="Customer:", bg=self.color_content_bg, font=("Arial", 11)).pack(side=LEFT, padx=(0, 4))
+        Label(search_frame, text="Customer:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 8)).pack(side=LEFT, padx=(0, 2))
         self.trips_customer_var = StringVar()
-        customer_entry = Entry(search_frame, textvariable=self.trips_customer_var, width=18)
-        customer_entry.pack(side=LEFT, padx=(0, 10))
+        customer_entry = Entry(search_frame, textvariable=self.trips_customer_var, width=12, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg, font=("Arial", 8))
+        customer_entry.pack(side=LEFT, padx=(0, 4))
 
-        Label(search_frame, text="From (YYYY-MM-DD):", bg=self.color_content_bg, font=("Arial", 10)).pack(side=LEFT, padx=(0, 4))
+        Label(search_frame, text="From:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 8)).pack(side=LEFT, padx=(0, 2))
         self.trips_from_var = StringVar()
-        from_entry = Entry(search_frame, textvariable=self.trips_from_var, width=12)
-        from_entry.pack(side=LEFT, padx=(0, 4))
+        from_entry = Entry(search_frame, textvariable=self.trips_from_var, width=9, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg, font=("Arial", 8))
+        from_entry.pack(side=LEFT, padx=(0, 2))
 
-        Label(search_frame, text="To:", bg=self.color_content_bg, font=("Arial", 10)).pack(side=LEFT, padx=(0, 4))
+        Label(search_frame, text="To:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 8)).pack(side=LEFT, padx=(0, 2))
         self.trips_to_var = StringVar()
-        to_entry = Entry(search_frame, textvariable=self.trips_to_var, width=12)
-        to_entry.pack(side=LEFT, padx=(0, 4))
+        to_entry = Entry(search_frame, textvariable=self.trips_to_var, width=9, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg, font=("Arial", 8))
+        to_entry.pack(side=LEFT, padx=(0, 2))
 
         table_frame = Frame(self.main_frame, bg=self.color_content_bg)
-        table_frame.pack(fill=BOTH, expand=True, padx=12, pady=8)
+        table_frame.pack(fill=BOTH, expand=True, padx=8, pady=2)
 
         columns = (
             "Booking ID", "Customer Email", "Pickup", "Dropoff",
             "Date", "Time", "Assigned Driver", "Status"
         )
-        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15, style="Rider.Treeview")
+        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=24, style="Rider.Treeview")
 
-        # striped rows
-        self.tree.tag_configure("evenrow", background="#ffffff")
-        self.tree.tag_configure("oddrow", background="#f3f4f6")
+        # FIXED: Configure striped row colors with proper foreground
+        even_bg = self.theme_colors.get("treeview_even", "#ffffff")
+        odd_bg = self.theme_colors.get("treeview_odd", "#f3f4f6")
+        text_color = self.theme_colors.get("treeview_fg", "#111827")
+        
+        self.tree.tag_configure("evenrow", background=even_bg, foreground=text_color)
+        self.tree.tag_configure("oddrow", background=odd_bg, foreground=text_color)
 
+        # ULTRA COMPACT columns
         for col in columns:
-            self.tree.heading(col, text=col)
-            if col == "Booking ID":
-                self.tree.column(col, width=70, anchor=CENTER, stretch=False)
+            self. tree.heading(col, text=col)
+            if col == "Booking ID": 
+                self.tree.column(col, width=50, anchor=CENTER, stretch=False)
             elif col in ("Date", "Time"):
-                self.tree.column(col, width=90, anchor=CENTER, stretch=False)
+                self. tree.column(col, width=65, anchor=CENTER, stretch=False)
             elif col == "Status":
-                self.tree.column(col, width=95, anchor=CENTER, stretch=False)
+                self.tree.column(col, width=70, anchor=CENTER, stretch=False)
             elif col == "Customer Email":
-                self.tree.column(col, width=170, stretch=True)
+                self.tree.column(col, width=130, stretch=True)
             elif col == "Assigned Driver":
-                self.tree.column(col, width=130, stretch=True)
+                self.tree. column(col, width=105, stretch=True)
             else:  # Pickup / Dropoff
-                self.tree.column(col, width=130, stretch=True)
+                self.tree.column(col, width=95, stretch=True)
+        
         self.tree.pack(side=LEFT, fill=BOTH, expand=True)
 
         scrollbar_y = Scrollbar(table_frame, orient=VERTICAL, command=self.tree.yview)
-        scrollbar_y.pack(side=RIGHT, fill=Y)
+        scrollbar_y. pack(side=RIGHT, fill=Y)
         self.tree.configure(yscrollcommand=scrollbar_y.set)
 
         # sortable columns
         self._make_treeview_sortable(self.tree, columns, numeric_cols={"Booking ID"})
 
+        # COMPACT buttons
         btn_frame = Frame(self.main_frame, bg=self.color_content_bg)
-        btn_frame.pack(pady=8)
+        btn_frame.pack(pady=3)
         Button(
             btn_frame, text="Accept Ride", bg="#0a84ff", fg="white",
-            width=14, command=self.accept_ride
-        ).pack(side=LEFT, padx=6)
+            width=11, font=("Arial", 8, "bold"), command=self.accept_ride
+        ).pack(side=LEFT, padx=3)
         Button(
             btn_frame, text="Complete Ride", bg="#16a34a", fg="white",
-            width=14, command=self.complete_ride
-        ).pack(side=LEFT, padx=6)
+            width=12, font=("Arial", 8, "bold"), command=self.complete_ride
+        ).pack(side=LEFT, padx=3)
         Button(
             btn_frame, text="Refresh", bg="#6b7280", fg="white",
-            width=10, command=self.refresh_page
-        ).pack(side=LEFT, padx=6)
+            width=7, font=("Arial", 8, "bold"), command=self.refresh_page
+        ).pack(side=LEFT, padx=3)
 
         # cache + initial load
         try:
@@ -390,22 +502,22 @@ class RiderDashboard:
                     trip["status"]
                 ]
                 tag = "evenrow" if idx % 2 == 0 else "oddrow"
-                self.tree.insert("", END, values=vals, tags=(tag,))
+                self. tree.insert("", END, values=vals, tags=(tag,))
 
         def _apply_filters(*_):
-            text = (self.trips_search_var.get() or "").strip().lower()
-            status_filter = (self.trips_status_var.get() or "All").strip().lower()
+            text = (self.trips_search_var. get() or "").strip().lower()
+            status_filter = (self.trips_status_var. get() or "All").strip().lower()
             cust_filter = (self.trips_customer_var.get() or "").strip().lower()
             from_date = (self.trips_from_var.get() or "").strip()
-            to_date = (self.trips_to_var.get() or "").strip()
+            to_date = (self.trips_to_var. get() or "").strip()
 
             filtered = []
             for trip in getattr(self, "_trips_cache", []):
-                status_val = str(trip.get("status", ""))
+                status_val = str(trip. get("status", ""))
                 customer_val = str(trip.get("customer_email", ""))
                 date_str = str(trip.get("date", ""))
 
-                if text:
+                if text: 
                     combined = " ".join(
                         str(trip.get(k, ""))
                         for k in ("id", "customer_email", "pickup", "dropoff", "date", "time", "status")
@@ -414,10 +526,10 @@ class RiderDashboard:
                         continue
 
                 if status_filter and status_filter != "all":
-                    if status_val.lower() != status_filter:
+                    if status_val. lower() != status_filter:
                         continue
 
-                if cust_filter and cust_filter not in customer_val.lower():
+                if cust_filter and cust_filter not in customer_val. lower():
                     continue
 
                 if from_date and date_str and date_str < from_date:
@@ -437,12 +549,12 @@ class RiderDashboard:
         _refresh_tree()
 
     def load_trips(self):
-        if not self.driver_id:
+        if not self. driver_id:
             return
 
         try:
-            self._trips_cache = self.service.get_trips()
-        except Exception as e:
+            self._trips_cache = self.service. get_trips()
+        except Exception as e: 
             messagebox.showerror("Error", f"Failed to load trips: {e}")
             self._trips_cache = []
 
@@ -459,8 +571,8 @@ class RiderDashboard:
             cust_filter = (self.trips_customer_var.get() or "").strip().lower()
         except Exception:
             cust_filter = ""
-        try:
-            from_date = (self.trips_from_var.get() or "").strip()
+        try: 
+            from_date = (self. trips_from_var.get() or "").strip()
         except Exception:
             from_date = ""
         try:
@@ -480,7 +592,7 @@ class RiderDashboard:
 
                 if text and text not in combined:
                     continue
-                if status_filter and status_filter != "all" and status_val.lower() != status_filter:
+                if status_filter and status_filter != "all" and status_val. lower() != status_filter:
                     continue
                 if cust_filter and cust_filter not in customer_val.lower():
                     continue
@@ -512,13 +624,13 @@ class RiderDashboard:
                 self.tree.delete(row)
             data = getattr(self, "_trips_cache", [])
             # if only status filter is active
-            if status_filter and status_filter != "all":
+            if status_filter and status_filter != "all": 
                 data = [
                     trip for trip in data if str(trip.get("status", "")).lower() == status_filter
                 ]
 
             for idx, trip in enumerate(data):
-                taxi_type = ""
+                driver_disp = self.driver_name or self.driver_email or ""
                 vals = [
                     trip["id"],
                     trip["customer_email"],
@@ -526,7 +638,7 @@ class RiderDashboard:
                     trip["dropoff"],
                     trip["date"],
                     trip["time"],
-                    taxi_type,
+                    driver_disp,
                     trip["status"],
                 ]
                 tag = "evenrow" if idx % 2 == 0 else "oddrow"
@@ -552,9 +664,9 @@ class RiderDashboard:
             messagebox.showinfo("Success", "Ride accepted.")
             self.load_trips()
         except ValueError as e:
-            messagebox.showinfo("Info", str(e))
+            messagebox. showinfo("Info", str(e))
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to accept ride: {e}")
+            messagebox.showerror("Error", f"Failed to accept ride:  {e}")
 
     def complete_ride(self):
         booking_id = self.get_selected_booking()
@@ -582,7 +694,7 @@ class RiderDashboard:
         ).pack(pady=20)
 
         if not self.driver_id:
-            messagebox.showerror("Error", "Driver ID not resolved. Cannot load profile.")
+            messagebox.showerror("Error", "Driver ID not resolved.  Cannot load profile.")
             return
 
         try:
@@ -642,11 +754,11 @@ class RiderDashboard:
                         tags="avatar_img"
                     )
                     return
-            # fallback: first letter
+            # fallback:  first letter
             avatar_canvas.create_text(
                 center_x,
                 center_y,
-                text=(name[:1].upper() if name else "?"),
+                text=(name[: 1]. upper() if name else "?"),
                 font=("Arial", 32, "bold"),
                 fill="#4b5563",
                 tags="avatar_initial"
@@ -656,7 +768,7 @@ class RiderDashboard:
 
         def upload_photo():
             filetypes = [
-                ("Image files", "*.png *.jpg *.jpeg *.gif *.bmp"),
+                ("Image files", "*.png *.jpg *.jpeg *. gif *.bmp"),
                 ("All files", "*.*"),
             ]
             filepath = filedialog.askopenfilename(
@@ -702,15 +814,19 @@ class RiderDashboard:
         values = [name, email, phone, address, status]
         entries = {}
 
+        entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
+        entry_fg = self.theme_colors.get("entry_fg", "#111827")
+
         for i, lab in enumerate(labels):
             Label(
                 frame,
                 text=lab,
                 bg=self.color_content_bg,
+                fg=self.color_text_primary,
                 font=("Arial", 12)
             ).grid(row=i, column=0, padx=10, pady=7, sticky="w")
 
-            ent = Entry(frame, width=30, font=("Arial", 12))
+            ent = Entry(frame, width=30, font=("Arial", 12), bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
             ent.insert(0, values[i] if values[i] is not None else "")
             if lab in ["Email", "Status"]:
                 ent.config(state="disabled")
@@ -727,14 +843,14 @@ class RiderDashboard:
                 self.driver_name = new_name
                 messagebox.showinfo("Success", "Profile updated successfully!")
             except ValueError as e:
-                messagebox.showwarning("Warning", str(e))
-            except Exception as e:
+                messagebox. showwarning("Warning", str(e))
+            except Exception as e: 
                 messagebox.showerror("Error", f"Failed to update profile: {e}")
 
         Button(
             self.main_frame,
             text="Save Changes",
-            bg=self.color_accent,
+            bg=self. color_accent,
             fg="white",
             font=("Arial", 12, "bold"),
             width=20,
@@ -746,7 +862,7 @@ class RiderDashboard:
     def refresh_page(self):
         try:
             self.show_dashboard()
-        except Exception:
+        except Exception: 
             pass
         try:
             self.load_trips()
@@ -758,7 +874,7 @@ class RiderDashboard:
         messagebox.showinfo("Coming Soon", "Feature not implemented yet ✨")
 
     def _show_support_popup(self):
-        messagebox.showinfo(
+        messagebox. showinfo(
             "Contact Support",
             "You can contact support at: support@example.com\n"
             "Or call: +977-9810000000"
@@ -779,21 +895,23 @@ class RiderDashboard:
         frame.pack(pady=10, padx=16, fill=X)
 
         Label(frame, text="Notification Preferences", bg=self.color_content_bg,
-              font=("Arial", 12, "bold")).grid(row=0, column=0, sticky="w", padx=8, pady=6)
+              fg=self.color_text_primary, font=("Arial", 12, "bold")).grid(row=0, column=0, sticky="w", padx=8, pady=6)
 
         self.email_notif_var = BooleanVar(value=True)
         self.sms_notif_var = BooleanVar(value=True)
 
         Checkbutton(frame, text="Email notifications", variable=self.email_notif_var,
-                    bg=self.color_content_bg).grid(row=1, column=0, sticky="w", padx=20, pady=4)
+                    bg=self.color_content_bg, fg=self.color_text_primary,
+                    selectcolor=self.color_card_bg).grid(row=1, column=0, sticky="w", padx=20, pady=4)
         Checkbutton(frame, text="SMS notifications", variable=self.sms_notif_var,
-                    bg=self.color_content_bg).grid(row=2, column=0, sticky="w", padx=20, pady=4)
+                    bg=self. color_content_bg, fg=self.color_text_primary,
+                    selectcolor=self. color_card_bg).grid(row=2, column=0, sticky="w", padx=20, pady=4)
 
         Label(
             frame,
-            text="(Placeholder settings — wire to DB if needed.)",
+            text="(Placeholder settings — wire to DB if needed. )",
             bg=self.color_content_bg,
-            fg="#6b7280"
+            fg=self.color_text_secondary
         ).grid(row=3, column=0, sticky="w", padx=8, pady=10)
 
     def show_support(self):
@@ -803,7 +921,7 @@ class RiderDashboard:
             text="Support",
             font=("Arial", 18, "bold"),
             bg=self.color_content_bg,
-            fg=self.color_accent
+            fg=self. color_accent
         ).pack(pady=20)
 
         Label(
@@ -811,7 +929,8 @@ class RiderDashboard:
             text="If you face any issue with your trips or profile,\n"
                  "you can contact our support team.",
             font=("Arial", 12),
-            bg=self.color_content_bg,
+            bg=self. color_content_bg,
+            fg=self.color_text_primary,
             justify="center"
         ).pack(pady=10)
 
@@ -838,19 +957,19 @@ class RiderDashboard:
                     self.root.destroy()
             except Exception:
                 try:
-                    self.root.destroy()
+                    self.root. destroy()
                 except Exception:
                     pass
 
     def destroy(self):
         """Remove dashboard UI when logging out / switching user."""
         try:
-            self.sidebar_frame.destroy()
+            self. sidebar_frame.destroy()
         except Exception:
             pass
-        try:
-            self.main_frame.destroy()
-        except Exception:
+        try: 
+            self.main_frame. destroy()
+        except Exception: 
             pass
 
 
@@ -858,4 +977,3 @@ if __name__ == "__main__":
     root = Tk()
     RiderDashboard(root, username="rupak@gmail.com")
     root.mainloop()
-

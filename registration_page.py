@@ -1,37 +1,68 @@
 from tkinter import *
 from tkinter import messagebox
 from db import create_connection
+from theme_manager import get_theme_colors, save_theme_preference, get_theme_preference
 import re
 
-class RegistrationPage:
+class RegistrationPage: 
     def __init__(self, root, switch_to_login):
         self.root = root
         self.switch_to_login = switch_to_login
         self.gender_var = StringVar(value="Male")
         self.frame = None
+        
+        # Theme management
+        self.current_theme = get_theme_preference()
+        self.theme_colors = get_theme_colors(self.current_theme)
+        self.theme_toggle_btn = None
+        
         self.create_widgets()
     
     def create_widgets(self):
         # Main frame for registration page
-        self.frame = Frame(self.root, bg='#f5f5f5')
+        self.frame = Frame(self.root, bg=self. theme_colors. get("content_bg", "#f5f5f5"))
+        
+        # Theme toggle button - positioned at top-left with subtle styling
+        toggle_bg = "#f0f0f0" if self.current_theme == "light" else "#2d3748"
+        toggle_fg = "#333333" if self.current_theme == "light" else "#e2e8f0"
+        
+        self.theme_toggle_btn = Button(
+            self. frame,
+            text="🌙" if self.current_theme == "light" else "☀️",
+            font=("Arial", 14),
+            bg=toggle_bg,
+            fg=toggle_fg,
+            relief=FLAT,
+            bd=0,
+            cursor="hand2",
+            command=self.toggle_theme,
+            width=3,
+            height=1,
+            highlightthickness=1,
+            highlightbackground="#d0d0d0" if self.current_theme == "light" else "#4a5568",
+            highlightcolor="#d0d0d0" if self.current_theme == "light" else "#4a5568"
+        )
+        # Position it at top-left corner
+        self.theme_toggle_btn.place(x=20, y=20)
         
         # Create canvas for scrolling
-        canvas = Canvas(self.frame, bg='#f5f5f5', highlightthickness=0)
+        canvas = Canvas(self.frame, bg=self.theme_colors.get("content_bg", "#f5f5f5"), highlightthickness=0)
         canvas.pack(side=LEFT, fill=BOTH, expand=True)
         
         # Add vertical scrollbar
-        v_scrollbar = Scrollbar(self.frame, orient=VERTICAL, command=canvas.yview)
+        scrollbar_bg = "#e5e7eb" if self.current_theme == "light" else "#475569"
+        v_scrollbar = Scrollbar(self.frame, orient=VERTICAL, command=canvas.yview, bg=scrollbar_bg)
         v_scrollbar.pack(side=RIGHT, fill=Y)
         
         # Add horizontal scrollbar
-        h_scrollbar = Scrollbar(self.frame, orient=HORIZONTAL, command=canvas.xview)
+        h_scrollbar = Scrollbar(self.frame, orient=HORIZONTAL, command=canvas.xview, bg=scrollbar_bg)
         h_scrollbar.pack(side=BOTTOM, fill=X)
         
         # Configure canvas
         canvas.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
         
         # Create scrollable frame inside canvas
-        scrollable_frame = Frame(canvas, bg='#f5f5f5')
+        scrollable_frame = Frame(canvas, bg=self.theme_colors. get("content_bg", "#f5f5f5"))
         scrollable_frame.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
@@ -43,144 +74,174 @@ class RegistrationPage:
         scrollable_frame.pack(expand=True)
         
         # Registration Frame (centered in scrollable area)
-        container = Frame(scrollable_frame, bg='#f5f5f5')
+        container = Frame(scrollable_frame, bg=self.theme_colors. get("content_bg", "#f5f5f5"))
         container.pack(pady=20, expand=True)
         
         # Shadow effect
-        shadow_frame = Frame(container, bg='#d0d0d0')
+        shadow_color = "#d0d0d0" if self.current_theme == "light" else "#1a1a1a"
+        shadow_frame = Frame(container, bg=shadow_color)
         shadow_frame.place(x=5, y=5, width=450, height=600)
         
-        reg_frame = Frame(container, bd=2, relief=RIDGE, bg='#ffffff')
+        reg_frame = Frame(container, bd=2, relief=RIDGE, bg=self.theme_colors.get("card_bg", "#ffffff"))
         reg_frame.pack()
         
         # Frame Title
         title = Label(reg_frame, text="Registration", font=("Times New Roman", 28, "bold"), 
-                     bg="#ffffff", fg="#333333")
+                     bg=self.theme_colors.get("card_bg", "#ffffff"), 
+                     fg=self.theme_colors.get("card_text", "#333333"))
         title.pack(pady=15)
         
         # Content container with padding
-        content = Frame(reg_frame, bg='#ffffff')
+        content = Frame(reg_frame, bg=self.theme_colors.get("card_bg", "#ffffff"))
         content.pack(padx=40, pady=5)
+        
+        # Determine entry colors based on theme
+        entry_bg = "#ECECEC" if self.current_theme == "light" else "#475569"
+        entry_fg = "#333333" if self.current_theme == "light" else "#f1f5f9"
+        label_fg = self.theme_colors.get("card_text_secondary", "#555555")
         
         # Full Name
         lbl_Fullname = Label(content, text="Full Name", font=("Times New Roman", 14), 
-                         bg="#ffffff", fg="#555555")
+                         bg=self.theme_colors.get("card_bg", "#ffffff"), fg=label_fg)
         lbl_Fullname.pack(anchor=W, pady=(5, 3))
         
-        self.txt_fullname = Entry(content, font=("times new roman", 13), bg="#ECECEC", relief=FLAT)
+        self.txt_fullname = Entry(content, font=("times new roman", 13), bg=entry_bg, 
+                                 fg=entry_fg, relief=FLAT, insertbackground=entry_fg)
         self.txt_fullname.pack(fill=X, ipady=6)
         
         # Email
         lbl_Email = Label(content, text="Email", font=("Times New Roman", 14), 
-                         bg="#ffffff", fg="#555555")
+                         bg=self.theme_colors. get("card_bg", "#ffffff"), fg=label_fg)
         lbl_Email.pack(anchor=W, pady=(10, 3))
         
-        self.txt_email = Entry(content, font=("times new roman", 13), bg="#ECECEC", relief=FLAT)
+        self.txt_email = Entry(content, font=("times new roman", 13), bg=entry_bg, 
+                              fg=entry_fg, relief=FLAT, insertbackground=entry_fg)
         self.txt_email.pack(fill=X, ipady=6)
         
         # Phone Number
         lbl_phone = Label(content, text="Phone Number", font=("Times New Roman", 14), 
-                          bg="#ffffff", fg="#555555")
+                          bg=self.theme_colors. get("card_bg", "#ffffff"), fg=label_fg)
         lbl_phone.pack(anchor=W, pady=(10, 3))
         
-        self.txt_phone = Entry(content, font=("times new roman", 13), bg="#ECECEC", relief=FLAT)
+        self.txt_phone = Entry(content, font=("times new roman", 13), bg=entry_bg, 
+                              fg=entry_fg, relief=FLAT, insertbackground=entry_fg)
         self.txt_phone.pack(fill=X, ipady=6)
         
         # Address
         lbl_address = Label(content, text="Address", font=("Times New Roman", 14), 
-                            bg="#ffffff", fg="#555555")
+                            bg=self.theme_colors. get("card_bg", "#ffffff"), fg=label_fg)
         lbl_address.pack(anchor=W, pady=(10, 3))
         
-        self.txt_address = Entry(content, font=("times new roman", 13), bg="#ECECEC", relief=FLAT)
+        self.txt_address = Entry(content, font=("times new roman", 13), bg=entry_bg, 
+                                fg=entry_fg, relief=FLAT, insertbackground=entry_fg)
         self.txt_address.pack(fill=X, ipady=6)
         
         # Gender and Role in same row
-        gender_role_frame = Frame(content, bg='#ffffff')
-        gender_role_frame.pack(fill=X, pady=(10, 0))
+        gender_role_frame = Frame(content, bg=self.theme_colors.get("card_bg", "#ffffff"))
+        gender_role_frame. pack(fill=X, pady=(10, 0))
         
         # Gender (left side)
-        gender_frame = Frame(gender_role_frame, bg='#ffffff')
-        gender_frame.pack(side=LEFT, fill=X, expand=True)
+        gender_frame = Frame(gender_role_frame, bg=self.theme_colors.get("card_bg", "#ffffff"))
+        gender_frame. pack(side=LEFT, fill=X, expand=True)
         
         lbl_gender = Label(gender_frame, text="Gender", font=("Times New Roman", 14), 
-                          bg="#ffffff", fg="#555555")
+                          bg=self.theme_colors. get("card_bg", "#ffffff"), fg=label_fg)
         lbl_gender.pack(anchor=W, pady=(0, 5))
         
-        gender_options = Frame(gender_frame, bg='#ffffff')
+        gender_options = Frame(gender_frame, bg=self.theme_colors.get("card_bg", "#ffffff"))
         gender_options.pack(anchor=W)
         
-        Radiobutton(gender_options, text="Male", variable=self.gender_var, value="Male", 
-                   font=("Times New Roman", 12), bg="#ffffff").pack(side=LEFT, padx=(0, 15))
-        Radiobutton(gender_options, text="Female", variable=self.gender_var, value="Female", 
-                   font=("Times New Roman", 12), bg="#ffffff").pack(side=LEFT)
+        radio_fg = self.theme_colors.get("card_text", "#333333")
+        Radiobutton(gender_options, text="Male", variable=self. gender_var, value="Male", 
+                   font=("Times New Roman", 12), bg=self.theme_colors.get("card_bg", "#ffffff"),
+                   fg=radio_fg, selectcolor=entry_bg, activebackground=self.theme_colors.get("card_bg", "#ffffff"),
+                   activeforeground=radio_fg).pack(side=LEFT, padx=(0, 15))
+        Radiobutton(gender_options, text="Female", variable=self. gender_var, value="Female", 
+                   font=("Times New Roman", 12), bg=self.theme_colors.get("card_bg", "#ffffff"),
+                   fg=radio_fg, selectcolor=entry_bg, activebackground=self.theme_colors.get("card_bg", "#ffffff"),
+                   activeforeground=radio_fg).pack(side=LEFT)
         
         # Role (right side)
-        role_frame = Frame(gender_role_frame, bg='#ffffff')
+        role_frame = Frame(gender_role_frame, bg=self.theme_colors.get("card_bg", "#ffffff"))
         role_frame.pack(side=LEFT, fill=X, expand=True)
         
         lbl_role = Label(role_frame, text="Role", font=("Times New Roman", 14), 
-                        bg="#ffffff", fg="#555555")
+                        bg=self.theme_colors. get("card_bg", "#ffffff"), fg=label_fg)
         lbl_role.pack(anchor=W, pady=(0, 5))
         
         self.role_var = StringVar(value="Customer")
         role_menu = OptionMenu(role_frame, self.role_var, "Admin", "Customer", "Driver")
-        role_menu.config(font=("Times New Roman", 11), bg="#ECECEC", width=12, relief=FLAT)
+        role_menu.config(font=("Times New Roman", 11), bg=entry_bg, fg=entry_fg, 
+                        width=12, relief=FLAT, activebackground=entry_bg, 
+                        activeforeground=entry_fg, highlightthickness=0)
+        role_menu["menu"]. config(bg=entry_bg, fg=entry_fg)
         role_menu.pack(anchor=W)
         
         # Password
         lbl_password = Label(content, text="Password", font=("Times New Roman", 14), 
-                             bg="#ffffff", fg="#555555")
+                             bg=self.theme_colors. get("card_bg", "#ffffff"), fg=label_fg)
         lbl_password.pack(anchor=W, pady=(10, 3))
         
-        password_frame = Frame(content, bg="#ECECEC")
+        password_frame = Frame(content, bg=entry_bg)
         password_frame.pack(fill=X)
         
-        self.txt_password = Entry(password_frame, font=("times new roman", 13), bg="#ECECEC", show="•", relief=FLAT, bd=0)
-        self.txt_password.pack(side=LEFT, fill=BOTH, expand=True, ipady=6, padx=(5, 0))
+        self.txt_password = Entry(password_frame, font=("times new roman", 13), bg=entry_bg, 
+                                 fg=entry_fg, show="•", relief=FLAT, bd=0, insertbackground=entry_fg)
+        self.txt_password. pack(side=LEFT, fill=BOTH, expand=True, ipady=6, padx=(5, 0))
         
         self.show_password_var = BooleanVar(value=False)
-        show_password_btn = Button(password_frame, text="👁", font=("Arial", 12), bg="#ECECEC", 
-                                   fg="#555555", relief=FLAT, bd=0, cursor="hand2",
+        eye_icon_color = "#555555" if self.current_theme == "light" else "#b0b0b0"
+        show_password_btn = Button(password_frame, text="👁", font=("Arial", 12), bg=entry_bg, 
+                                   fg=eye_icon_color, relief=FLAT, bd=0, cursor="hand2",
                                    command=self.toggle_password)
-        show_password_btn.pack(side=RIGHT, padx=5)
+        show_password_btn. pack(side=RIGHT, padx=5)
         
         # Confirm Password
         lbl_confirm_password = Label(content, text="Confirm Password", font=("Times New Roman", 14), 
-                                     bg="#ffffff", fg="#555555")
-        lbl_confirm_password.pack(anchor=W, pady=(10, 3))
+                                     bg=self.theme_colors. get("card_bg", "#ffffff"), fg=label_fg)
+        lbl_confirm_password. pack(anchor=W, pady=(10, 3))
         
-        confirm_password_frame = Frame(content, bg="#ECECEC")
+        confirm_password_frame = Frame(content, bg=entry_bg)
         confirm_password_frame.pack(fill=X)
         
-        self.txt_confirm_password = Entry(confirm_password_frame, font=("times new roman", 13), bg="#ECECEC", show="•", relief=FLAT, bd=0)
+        self.txt_confirm_password = Entry(confirm_password_frame, font=("times new roman", 13), 
+                                         bg=entry_bg, fg=entry_fg, show="•", relief=FLAT, bd=0,
+                                         insertbackground=entry_fg)
         self.txt_confirm_password.pack(side=LEFT, fill=BOTH, expand=True, ipady=6, padx=(5, 0))
         
-        self.show_confirm_password_var = BooleanVar(value=False)
-        show_confirm_password_btn = Button(confirm_password_frame, text="👁", font=("Arial", 12), bg="#ECECEC", 
-                                          fg="#555555", relief=FLAT, bd=0, cursor="hand2",
-                                          command=self.toggle_confirm_password)
+        self. show_confirm_password_var = BooleanVar(value=False)
+        show_confirm_password_btn = Button(confirm_password_frame, text="👁", font=("Arial", 12), 
+                                          bg=entry_bg, fg=eye_icon_color, relief=FLAT, bd=0, 
+                                          cursor="hand2", command=self.toggle_confirm_password)
         show_confirm_password_btn.pack(side=RIGHT, padx=5)
         
         # Register Button
         btn_register = Button(content, text="Register", font=("arial round mt bold", 14), 
-                              bg="#00B0F0", fg="#ffffff", activebackground="#0099D6", 
+                              bg=self.theme_colors. get("accent", "#00B0F0"), fg="#ffffff", 
+                              activebackground=self.theme_colors.get("accent", "#00B0F0"), 
                               cursor="hand2", activeforeground="#ffffff", command=self.register,
                               relief=FLAT, bd=0)
         btn_register.pack(pady=15, ipady=6, ipadx=30)
         
         # Already have account message
-        login_frame = Frame(content, bg='#ffffff')
+        login_frame = Frame(content, bg=self.theme_colors.get("card_bg", "#ffffff"))
         login_frame.pack(pady=(0, 10))
         
         message = Label(login_frame, text="Already have an account?", 
-                        font=("times new roman", 10), bg="#ffffff", fg="#666666")
+                        font=("times new roman", 10), 
+                        bg=self.theme_colors.get("card_bg", "#ffffff"), 
+                        fg=self.theme_colors.get("card_text_secondary", "#666666"))
         message.pack(side=LEFT)
         
         # Login Button
         btn_login = Button(login_frame, text="Login", 
-                           font=("Times New Roman", 10, "bold", "underline"), bg="#ffffff", 
-                           fg="#00B0F0", bd=0, activebackground="#ffffff", cursor="hand2", 
-                           activeforeground="#00B0F0", command=self.switch_to_login)
+                           font=("Times New Roman", 10, "bold", "underline"), 
+                           bg=self.theme_colors. get("card_bg", "#ffffff"), 
+                           fg=self.theme_colors.get("accent", "#00B0F0"), bd=0, 
+                           activebackground=self.theme_colors.get("card_bg", "#ffffff"), 
+                           cursor="hand2", 
+                           activeforeground=self.theme_colors.get("accent", "#00B0F0"), 
+                           command=self.switch_to_login)
         btn_login.pack(side=LEFT, padx=5)
         
         # Enable mouse wheel scrolling
@@ -204,15 +265,51 @@ class RegistrationPage:
             self.txt_confirm_password.config(show="")
             self.show_confirm_password_var.set(False)
         else:
-            self.txt_confirm_password.config(show="•")
+            self.txt_confirm_password. config(show="•")
             self.show_confirm_password_var.set(True)
+    
+    def toggle_theme(self, preserve_data=True):
+        """Toggle between light and dark theme"""
+        form_data = {}
+        
+        # Only save form data if requested (not during sync from other page)
+        if preserve_data: 
+            form_data = {
+                'fullname': self.txt_fullname.get(),
+                'email': self.txt_email.get(),
+                'phone': self.txt_phone. get(),
+                'address': self.txt_address.get(),
+                'gender': self.gender_var.get(),
+                'password': self.txt_password.get(),
+                'confirm_password':  self.txt_confirm_password. get(),
+                'role': self.role_var.get()
+            }
+        
+        self.current_theme = "dark" if self.current_theme == "light" else "light"
+        save_theme_preference(self.current_theme)
+        self.theme_colors = get_theme_colors(self. current_theme)
+        
+        # Recreate widgets with new theme
+        self.frame.destroy()
+        self.create_widgets()
+        
+        # Restore form data only if we preserved it
+        if preserve_data and form_data:
+            self. txt_fullname.insert(0, form_data['fullname'])
+            self.txt_email.insert(0, form_data['email'])
+            self.txt_phone.insert(0, form_data['phone'])
+            self.txt_address.insert(0, form_data['address'])
+            self.gender_var. set(form_data['gender'])
+            self.txt_password. insert(0, form_data['password'])
+            self.txt_confirm_password.insert(0, form_data['confirm_password'])
+            self.role_var. set(form_data['role'])
     
     def register(self):
         # Get all registration data
-        fullname = self.txt_fullname.get().strip()
-        email = self.txt_email.get().strip()
+        fullname = self. txt_fullname.get().strip()
+        email = self. txt_email.get().strip()
         phone = self.txt_phone.get().strip()
-        address = self.txt_address.get().strip()
+        address = self.txt_address. get().strip()
         gender = self.gender_var.get()
         password = self.txt_password.get()
         confirm_password = self.txt_confirm_password.get()
@@ -228,7 +325,7 @@ class RegistrationPage:
             return
         
         if not phone.isdigit() or len(phone) < 10:
-            messagebox.showerror("Error", "Please enter a valid phone number (at least 10 digits)!")
+            messagebox. showerror("Error", "Please enter a valid phone number (at least 10 digits)!")
             return
         
         if password != confirm_password:
@@ -258,14 +355,14 @@ class RegistrationPage:
                 messagebox.showinfo("Success", "Registration successful! Please login.")
                 self.clear_fields()
                 self.switch_to_login()
-            except Exception as e:
+            except Exception as e: 
                 messagebox.showerror("Error", f"Registration failed: {str(e)}")
             finally:
                 cursor.close()
                 conn.close()
 
     def show(self):
-        self.frame.pack(fill=BOTH, expand=True)
+        self.frame. pack(fill=BOTH, expand=True)
 
     def hide(self):
         self.frame.pack_forget()

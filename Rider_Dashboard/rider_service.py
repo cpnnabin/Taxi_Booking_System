@@ -22,11 +22,35 @@ class RiderService:
         self.db.accept_ride(booking_id, self.driver_id)
 
     def complete_ride(self, booking_id):
-        """Complete a ride."""
+        """Complete a ride and update ride completion timestamp.
+        
+        Args:
+            booking_id (int): The ID of the booking to complete
+            
+        Raises:
+            ValueError: If the booking is not in 'Accepted' status
+            Exception: If there's an error completing the ride
+        """
+        # Get current booking status
         status = self.db.get_booking_status(booking_id)
+        
+        # Validate booking can be completed
         if status != "Accepted":
-            raise ValueError(f"Only 'Accepted' bookings can be completed (current: '{status}')")
-        self.db.complete_ride(booking_id, self.driver_id)
+            raise ValueError(
+                f"Only 'Accepted' bookings can be completed. "
+                f"Current status: '{status}'"
+            )
+            
+        try:
+            # Complete the ride and update timestamps
+            self.db.complete_ride(booking_id, self.driver_id)
+            
+            # Log the completion
+            print(f"Ride {booking_id} completed by driver {self.driver_id}")
+            
+        except Exception as e:
+            print(f"Error completing ride {booking_id}: {str(e)}")
+            raise
 
     def get_profile(self):
         """Get driver profile."""

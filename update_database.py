@@ -1,4 +1,5 @@
 import mysql.connector
+from mysql.connector import Error
 
 def update_database():
     try:

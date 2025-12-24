@@ -66,3 +66,15 @@ class RiderService:
         """Update driver photo path."""
         self.db.update_driver_photo_path(self.driver_id, photo_path)
 
+    def get_completed_rides(self):
+        """Get all completed rides for the driver."""
+        return self.db.get_completed_rides(self.driver_id)
+
+    def get_ongoing_rides(self):
+        """Get all ongoing rides (Accepted status) for the driver."""
+        return self.db.get_ongoing_rides(self.driver_id)
+
+    def get_cancelled_rides(self):
+        """Get all cancelled rides for the driver."""
+        return self.db.get_cancelled_rides(self.driver_id)
+

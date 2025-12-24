@@ -91,6 +91,44 @@ def update_database():
         else:
             print("✅ taxi_type column already exists.")
         
+        # 5. Add ride_end_time column to bookings table
+        cursor.execute("""
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = 'taxi_booking_system_test' 
+            AND TABLE_NAME = 'bookings' 
+            AND COLUMN_NAME = 'ride_end_time'
+        """)
+        
+        if not cursor.fetchone():
+            print("Adding ride_end_time column to bookings table...")
+            cursor.execute("""
+                ALTER TABLE bookings 
+                ADD COLUMN ride_end_time DATETIME NULL
+            """)
+            print("✅ Successfully added ride_end_time column.")
+        else:
+            print("✅ ride_end_time column already exists.")
+        
+        # 6. Add ride_status column to bookings table (if needed for compatibility)
+        cursor.execute("""
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = 'taxi_booking_system_test' 
+            AND TABLE_NAME = 'bookings' 
+            AND COLUMN_NAME = 'ride_status'
+        """)
+        
+        if not cursor.fetchone():
+            print("Adding ride_status column to bookings table...")
+            cursor.execute("""
+                ALTER TABLE bookings 
+                ADD COLUMN ride_status VARCHAR(50) NULL
+            """)
+            print("✅ Successfully added ride_status column.")
+        else:
+            print("✅ ride_status column already exists.")
+        
         conn.commit()
         cursor.close()
         conn.close()

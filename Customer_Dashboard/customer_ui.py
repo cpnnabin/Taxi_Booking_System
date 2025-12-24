@@ -1,14 +1,250 @@
 from tkinter import *
 from tkinter import ttk, messagebox, filedialog
 from tkcalendar import DateEntry
-from PIL import Image, ImageTk, ImageDraw
+from PIL import Image, ImageTk, ImageDraw, ImageFilter
 from datetime import datetime
 import os
 
-from Customer_Dashboard.customer_service import CustomerService
+from Customer_Dashboard. customer_service import CustomerService
 from theme_manager import get_theme_colors, save_theme_preference, get_theme_preference
 
 
+# ============================================
+# CSS-LIKE STYLE CONFIGURATION
+# ============================================
+class StyleConfig:
+    """CSS-like styling configuration for Tkinter widgets"""
+    
+    @staticmethod
+    def get_button_style(theme="light", variant="primary"):
+        """Returns button styling based on theme and variant"""
+        styles = {
+            "light": {
+                "primary": {
+                    "bg":  "#2563eb",
+                    "fg":  "white",
+                    "active_bg": "#1d4ed8",
+                    "hover_bg": "#1e40af",
+                    "font": ("Arial", 12, "bold"),
+                    "relief":  FLAT,
+                    "cursor": "hand2",
+                    "border":  0
+                },
+                "success": {
+                    "bg":  "#16a34a",
+                    "fg": "white",
+                    "active_bg": "#15803d",
+                    "hover_bg": "#166534",
+                    "font":  ("Arial", 12, "bold"),
+                    "relief":  FLAT,
+                    "cursor":  "hand2",
+                    "border": 0
+                },
+                "danger": {
+                    "bg": "#ef4444",
+                    "fg": "white",
+                    "active_bg": "#dc2626",
+                    "hover_bg": "#b91c1c",
+                    "font": ("Arial", 12, "bold"),
+                    "relief": FLAT,
+                    "cursor": "hand2",
+                    "border": 0
+                },
+                "sidebar": {
+                    "bg":  "#111827",
+                    "fg":  "white",
+                    "active_bg": "#1f2937",
+                    "hover_bg": "#374151",
+                    "font":  ("Arial", 12),
+                    "relief": FLAT,
+                    "cursor": "hand2",
+                    "border": 0
+                }
+            },
+            "dark":  {
+                "primary": {
+                    "bg": "#3b82f6",
+                    "fg": "white",
+                    "active_bg": "#2563eb",
+                    "hover_bg": "#1d4ed8",
+                    "font":  ("Arial", 12, "bold"),
+                    "relief":  FLAT,
+                    "cursor":  "hand2",
+                    "border": 0
+                },
+                "success": {
+                    "bg": "#22c55e",
+                    "fg": "white",
+                    "active_bg": "#16a34a",
+                    "hover_bg": "#15803d",
+                    "font": ("Arial", 12, "bold"),
+                    "relief":  FLAT,
+                    "cursor": "hand2",
+                    "border": 0
+                },
+                "danger": {
+                    "bg": "#f87171",
+                    "fg":  "white",
+                    "active_bg": "#ef4444",
+                    "hover_bg": "#dc2626",
+                    "font": ("Arial", 12, "bold"),
+                    "relief": FLAT,
+                    "cursor": "hand2",
+                    "border":  0
+                },
+                "sidebar": {
+                    "bg": "#1e293b",
+                    "fg": "white",
+                    "active_bg": "#334155",
+                    "hover_bg":  "#475569",
+                    "font":  ("Arial", 12),
+                    "relief": FLAT,
+                    "cursor": "hand2",
+                    "border": 0
+                }
+            }
+        }
+        return styles.get(theme, styles["light"]).get(variant, styles["light"]["primary"])
+
+    @staticmethod
+    def apply_shadow(widget, color="#000000", offset=2, opacity=0.1):
+        """Simulate shadow effect (limited in Tkinter)"""
+        try:
+            widget.config(highlightthickness=1, highlightbackground=color)
+        except:
+            pass
+
+
+# ============================================
+# JAVASCRIPT-LIKE EVENT HANDLERS
+# ============================================
+class EventHandler:
+    """JavaScript-like event handling for smooth interactions"""
+    
+    @staticmethod
+    def on_hover(widget, enter_config, leave_config):
+        """Adds hover effect to widgets"""
+        def on_enter(e):
+            for key, value in enter_config.items():
+                try:
+                    widget.config(**{key: value})
+                except:
+                    pass
+        
+        def on_leave(e):
+            for key, value in leave_config.items():
+                try:
+                    widget.config(**{key: value})
+                except:
+                    pass
+        
+        widget.bind("<Enter>", on_enter)
+        widget.bind("<Leave>", on_leave)
+    
+    @staticmethod
+    def on_click_animation(widget, press_config, release_config):
+        """Adds click animation to buttons"""
+        def on_press(e):
+            for key, value in press_config. items():
+                try:
+                    widget.config(**{key: value})
+                except:
+                    pass
+        
+        def on_release(e):
+            for key, value in release_config. items():
+                try:
+                    widget.config(**{key: value})
+                except:
+                    pass
+        
+        widget. bind("<ButtonPress-1>", on_press)
+        widget.bind("<ButtonRelease-1>", on_release)
+    
+    @staticmethod
+    def smooth_scroll(canvas, delta):
+        """Smooth scrolling effect"""
+        canvas.yview_scroll(int(-1 * (delta / 120)), "units")
+    
+    @staticmethod
+    def fade_in(widget, duration=300, steps=10):
+        """Fade in animation (simulated)"""
+        # Note: True fade requires platform-specific code
+        widget.update()
+    
+    @staticmethod
+    def debounce(func, wait_ms=300):
+        """Debounce function calls (like JavaScript debounce)"""
+        timer = None
+        def debounced(*args, **kwargs):
+            nonlocal timer
+            if timer: 
+                try:
+                    widget.after_cancel(timer)
+                except:
+                    pass
+            widget = args[0] if args else None
+            if widget and hasattr(widget, 'after'):
+                timer = widget.after(wait_ms, lambda: func(*args, **kwargs))
+        return debounced
+
+
+# ============================================
+# ANIMATED COMPONENTS
+# ============================================
+class AnimatedButton(Button):
+    """Button with CSS-like hover and click animations"""
+    
+    def __init__(self, parent, text="", command=None, variant="primary", theme="light", **kwargs):
+        style = StyleConfig.get_button_style(theme, variant)
+        
+        # Merge style with custom kwargs
+        config = {**style, **kwargs}
+        config. pop('hover_bg', None)
+        config.pop('active_bg', None)
+        
+        super().__init__(parent, text=text, command=command, **config)
+        
+        # Store colors for animations
+        self.default_bg = style. get('bg')
+        self.hover_bg = style.get('hover_bg')
+        self.active_bg = style.get('active_bg')
+        
+        # Apply hover effect
+        EventHandler.on_hover(
+            self,
+            enter_config={"bg": self.hover_bg},
+            leave_config={"bg": self.default_bg}
+        )
+        
+        # Apply click animation
+        EventHandler.on_click_animation(
+            self,
+            press_config={"bg": self.active_bg, "relief": SUNKEN},
+            release_config={"bg": self.hover_bg, "relief": FLAT}
+        )
+
+
+class AnimatedCard(Frame):
+    """Card component with shadow and hover effects"""
+    
+    def __init__(self, parent, bg="#ffffff", hover_lift=True, **kwargs):
+        super().__init__(parent, bg=bg, **kwargs)
+        
+        self.default_relief = kwargs.get('relief', FLAT)
+        self.hover_lift = hover_lift
+        
+        if hover_lift:
+            EventHandler.on_hover(
+                self,
+                enter_config={"relief": RAISED, "borderwidth": 1},
+                leave_config={"relief": self.default_relief, "borderwidth": 0}
+            )
+
+
+# ============================================
+# ENHANCED CUSTOMER DASHBOARD
+# ============================================
 class CustomerDashboard:
     def __init__(self, root, customer_id, logout_callback=None):
         self.root = root
@@ -37,95 +273,17 @@ class CustomerDashboard:
         self.theme_toggle_btn = None
 
         # ------------------ COLORS from theme ------------------
-        self.color_sidebar_bg = self.theme_colors. get("sidebar_bg", "#050816")
-        self.color_sidebar_btn = self.theme_colors.get("sidebar_btn", "#111827")
-        self.color_sidebar_btn_active = self.theme_colors.get("sidebar_btn_active", "#1f2937")
-        self.color_content_bg = self.theme_colors.get("content_bg", "#f9fafb")
-        self.color_accent = self.theme_colors.get("accent", "#2563eb")
-        self.color_text_primary = self.theme_colors.get("text_primary", "#111827")
-        self.color_text_secondary = self.theme_colors.get("text_secondary", "#6b7280")
-        self.color_card_bg = self.theme_colors.get("card_bg", "#ffffff")
+        self.update_theme_colors()
 
         self.root.title("Customer Dashboard")
         self.root.geometry("950x760")
         self.root.config(bg=self.color_content_bg)
 
-        # -------- COMPACT TABLE STYLE (MATCHING ADMIN/RIDER) --------
-        try:
-            style = ttk.Style(self.root)
-            
-            # Compact Treeview with normal text
-            style.configure(
-                "Customer.Treeview",
-                background=self.theme_colors.get("treeview_bg", "#ffffff"),
-                foreground=self.theme_colors.get("treeview_fg", "#111827"),
-                fieldbackground=self.theme_colors.get("treeview_bg", "#ffffff"),
-                rowheight=18,  # Compact
-                padding=(1, 0),  # Minimal padding
-                font=("Arial", 9),  # Normal readable
-                borderwidth=0,
-                relief="flat"
-            )
-            style.configure(
-                "Customer. Treeview.Heading",
-                background=self.color_sidebar_btn,
-                foreground="#ffffff",  # White bold text (matching Admin/Rider)
-                padding=(2, 1),  # Minimal padding
-                font=("Arial", 10, "bold"),  # Bold headings
-                borderwidth=0,
-                relief="flat"
-            )
-            style.map("Customer.Treeview",
-                     background=[('selected', self.theme_colors.get("treeview_selected_bg", "#2563eb"))],
-                     foreground=[('selected', self.theme_colors. get("treeview_selected_fg", "#ffffff"))])
-            
-            # Remove borders
-            style.layout("Customer.Treeview", [('Customer.Treeview.treearea', {'sticky': 'nswe'})])
-        except Exception:  
-            pass
+        # Configure styles
+        self.configure_styles()
 
         # ------------------ MENU BAR ------------------
-        self. mainmenu = Menu(self.root)
-
-        filemenu = Menu(self.mainmenu, tearoff=0)
-        filemenu.add_command(label='New', command=self. doNothing)
-        filemenu.add_command(label='Open', command=self.doNothing)
-        filemenu.add_command(label='Save', command=self.doNothing)
-        filemenu.add_command(label='Save as... ', command=self.doNothing)
-        filemenu.add_command(label='Close', command=self.doNothing)
-        filemenu.add_separator()
-        filemenu.add_command(label='Exit', command=self.root.quit)
-        self.mainmenu.add_cascade(label='File', menu=filemenu)
-
-        editmenu = Menu(self.mainmenu, tearoff=0)
-        editmenu.add_command(label='Undo', command=self.doNothing)
-        editmenu.add_command(label='Redo', command=self.doNothing)
-        editmenu.add_separator()
-        editmenu.add_command(label='Cut', command=self.doNothing)
-        editmenu.add_command(label='Copy', command=self.doNothing)
-        editmenu.add_command(label='Paste', command=self.doNothing)
-        self.mainmenu.add_cascade(label='Edit', menu=editmenu)
-
-        viewmenu = Menu(self.mainmenu, tearoff=0)
-        viewmenu.add_command(label='Refresh Dashboard', command=self.show_dashboard)
-        viewmenu.add_command(label='Show Bookings', command=self. show_bookings)
-        viewmenu.add_command(label='Show Profile', command=self.show_profile)
-        self.mainmenu.add_cascade(label='View', menu=viewmenu)
-
-        toolsmenu = Menu(self.mainmenu, tearoff=0)
-        toolsmenu.add_command(label='Settings', command=self.show_settings)
-        toolsmenu.add_command(label='Support', command=self.show_support)
-        toolsmenu.add_command(label='Export Data', command=self. doNothing)
-        toolsmenu.add_command(label='Toggle Theme', command=self.toggle_theme)
-        self.mainmenu.add_cascade(label='Tools', menu=toolsmenu)
-
-        helpmenu = Menu(self.mainmenu, tearoff=0)
-        helpmenu.add_command(label='User Guide', command=self. doNothing)
-        helpmenu.add_command(label='About', command=self.doNothing)
-        helpmenu.add_command(label='Contact Support', command=self.show_support)
-        self.mainmenu.add_cascade(label='Help', menu=helpmenu)
-
-        self.root.config(menu=self.mainmenu)
+        self. setup_menubar()
 
         # ----------------- MAIN LAYOUT ------------------
         self.sidebar = Frame(self.root, width=220, bg=self.color_sidebar_bg)
@@ -137,14 +295,8 @@ class CustomerDashboard:
         self.build_sidebar()
         self.show_dashboard()
 
-    # ------------- THEME TOGGLE (NO POPUP) -------------
-    def toggle_theme(self):
-        """Toggle between light and dark theme"""
-        self.current_theme = "dark" if self.current_theme == "light" else "light"
-        save_theme_preference(self.current_theme)
-        self.theme_colors = get_theme_colors(self.current_theme)
-        
-        # Update colors
+    def update_theme_colors(self):
+        """Update all theme colors from theme_colors dict"""
         self.color_sidebar_bg = self.theme_colors.get("sidebar_bg", "#050816")
         self.color_sidebar_btn = self.theme_colors.get("sidebar_btn", "#111827")
         self.color_sidebar_btn_active = self.theme_colors.get("sidebar_btn_active", "#1f2937")
@@ -153,16 +305,16 @@ class CustomerDashboard:
         self.color_text_primary = self.theme_colors.get("text_primary", "#111827")
         self.color_text_secondary = self.theme_colors.get("text_secondary", "#6b7280")
         self.color_card_bg = self.theme_colors.get("card_bg", "#ffffff")
-        
-        # Update root background
-        self.root.config(bg=self.color_content_bg)
-        
-        # Update treeview style - COMPACT
+
+    def configure_styles(self):
+        """Configure TTK styles with CSS-like approach"""
         try:
-            style = ttk. Style(self.root)
+            style = ttk.Style(self.root)
+            
+            # Compact Treeview with normal text
             style.configure(
                 "Customer.Treeview",
-                background=self.theme_colors. get("treeview_bg", "#ffffff"),
+                background=self.theme_colors.get("treeview_bg", "#ffffff"),
                 foreground=self.theme_colors.get("treeview_fg", "#111827"),
                 fieldbackground=self.theme_colors.get("treeview_bg", "#ffffff"),
                 rowheight=18,
@@ -174,19 +326,85 @@ class CustomerDashboard:
             style.configure(
                 "Customer. Treeview.Heading",
                 background=self.color_sidebar_btn,
-                foreground="#ffffff",  # White text
+                foreground="#ffffff",
                 padding=(2, 1),
                 font=("Arial", 10, "bold"),
                 borderwidth=0,
                 relief="flat"
             )
             style.map("Customer.Treeview",
-                     background=[('selected', self.theme_colors. get("treeview_selected_bg", "#2563eb"))],
-                     foreground=[('selected', self.theme_colors.get("treeview_selected_fg", "#ffffff"))])
+                     background=[('selected', self.theme_colors.get("treeview_selected_bg", "#2563eb"))],
+                     foreground=[('selected', self.theme_colors. get("treeview_selected_fg", "#ffffff"))])
             
+            # Remove borders
             style.layout("Customer.Treeview", [('Customer.Treeview.treearea', {'sticky': 'nswe'})])
-        except Exception:
+        except Exception: 
             pass
+
+    def setup_menubar(self):
+        """Setup menu bar with organized structure"""
+        self.mainmenu = Menu(self.root)
+
+        # File Menu
+        filemenu = Menu(self.mainmenu, tearoff=0)
+        filemenu.add_command(label='New', command=self. doNothing)
+        filemenu.add_command(label='Open', command=self.doNothing)
+        filemenu.add_command(label='Save', command=self.doNothing)
+        filemenu.add_command(label='Save as... ', command=self.doNothing)
+        filemenu.add_command(label='Close', command=self.doNothing)
+        filemenu.add_separator()
+        filemenu.add_command(label='Exit', command=self.root.quit)
+        self.mainmenu.add_cascade(label='File', menu=filemenu)
+
+        # Edit Menu
+        editmenu = Menu(self.mainmenu, tearoff=0)
+        editmenu.add_command(label='Undo', command=self.doNothing)
+        editmenu.add_command(label='Redo', command=self.doNothing)
+        editmenu.add_separator()
+        editmenu.add_command(label='Cut', command=self.doNothing)
+        editmenu.add_command(label='Copy', command=self.doNothing)
+        editmenu.add_command(label='Paste', command=self. doNothing)
+        self.mainmenu.add_cascade(label='Edit', menu=editmenu)
+
+        # View Menu
+        viewmenu = Menu(self.mainmenu, tearoff=0)
+        viewmenu.add_command(label='Refresh Dashboard', command=self.show_dashboard)
+        viewmenu.add_command(label='Show Bookings', command=self.show_bookings)
+        viewmenu.add_command(label='Show Profile', command=self.show_profile)
+        self.mainmenu.add_cascade(label='View', menu=viewmenu)
+
+        # Tools Menu
+        toolsmenu = Menu(self.mainmenu, tearoff=0)
+        toolsmenu.add_command(label='Settings', command=self.show_settings)
+        toolsmenu.add_command(label='Support', command=self.show_support)
+        toolsmenu.add_command(label='Export Data', command=self. doNothing)
+        toolsmenu.add_command(label='Toggle Theme', command=self.toggle_theme)
+        self.mainmenu.add_cascade(label='Tools', menu=toolsmenu)
+
+        # Help Menu
+        helpmenu = Menu(self.mainmenu, tearoff=0)
+        helpmenu.add_command(label='User Guide', command=self. doNothing)
+        helpmenu.add_command(label='About', command=self.doNothing)
+        helpmenu.add_command(label='Contact Support', command=self.show_support)
+        self.mainmenu.add_cascade(label='Help', menu=helpmenu)
+
+        self.root.config(menu=self.mainmenu)
+
+    # ------------- THEME TOGGLE (NO POPUP) -------------
+    def toggle_theme(self):
+        """Toggle between light and dark theme with smooth transition"""
+        self.current_theme = "dark" if self.current_theme == "light" else "light"
+        save_theme_preference(self.current_theme)
+        self.theme_colors = get_theme_colors(self.current_theme)
+        
+        # Update colors
+        self.update_theme_colors()
+        
+        # Update root background
+        self.root.config(bg=self.color_content_bg)
+        
+        # Update styles
+        self.configure_styles()
         
         # Rebuild UI (NO POPUP)
         self.sidebar.destroy()
@@ -201,90 +419,123 @@ class CustomerDashboard:
         self.build_sidebar()
         self.show_dashboard()
 
-    # ------------- IMAGE UTIL -------------
-    def _load_circular_image(self, path, size=(100, 100)):
-        """Load image from path, crop to circle, return PhotoImage."""
+    # ------------- IMAGE UTIL WITH EFFECTS -------------
+    def _load_circular_image(self, path, size=(100, 100), add_shadow=True):
+        """Load image from path, crop to circle, return PhotoImage with optional shadow"""
         try:
             img = Image.open(path).convert("RGBA")
             img = img.resize(size, Image. LANCZOS)
 
-            mask = Image.new("L", size, 0)
+            # Create circular mask
+            mask = Image. new("L", size, 0)
             draw = ImageDraw.Draw(mask)
             draw.ellipse((0, 0, size[0], size[1]), fill=255)
-            img.putalpha(mask)
+            
+            # Add soft shadow effect
+            if add_shadow:
+                shadow = Image.new("RGBA", size, (0, 0, 0, 0))
+                shadow_draw = ImageDraw.Draw(shadow)
+                shadow_draw.ellipse((2, 2, size[0] - 2, size[1] - 2), fill=(0, 0, 0, 50))
+                shadow = shadow.filter(ImageFilter.GaussianBlur(3))
+            
+            img. putalpha(mask)
 
             return ImageTk.PhotoImage(img)
         except Exception as e:
             print(f"[DEBUG] _load_circular_image error: {e}")
             return None
 
-    # ------------------ SIDEBAR (LOGOUT AT BOTTOM) ------------------
+    # ------------------ ENHANCED SIDEBAR ------------------
     def build_sidebar(self):
-        # Theme toggle button at the top
+        # Theme toggle button at the top with animation
         toggle_bg = "#f0f0f0" if self.current_theme == "light" else "#2d3748"
         toggle_fg = "#333333" if self.current_theme == "light" else "#e2e8f0"
+        toggle_text = "Dark" if self.current_theme == "light" else "Light"
         
-        self.theme_toggle_btn = Button(
+        self. theme_toggle_btn = Button(
             self.sidebar,
-            text="🌙" if self.current_theme == "light" else "☀️",
-            font=("Arial", 14),
+            text=toggle_text,
+            font=("Arial", 10, "bold"),
             bg=toggle_bg,
             fg=toggle_fg,
             relief=FLAT,
             bd=0,
             cursor="hand2",
             command=self.toggle_theme,
-            width=3,
+            width=8,
             height=1
         )
         self.theme_toggle_btn.pack(pady=(10, 0))
+        
+        # Add hover effect to theme toggle
+        hover_bg = "#e5e5e5" if self.current_theme == "light" else "#374151"
+        EventHandler.on_hover(
+            self.theme_toggle_btn,
+            enter_config={"bg": hover_bg},
+            leave_config={"bg": toggle_bg}
+        )
         
         Label(
             self.sidebar,
             text="Customer Menu",
             fg="white",
-            bg=self. color_sidebar_bg,
+            bg=self.color_sidebar_bg,
             font=("Arial", 16, "bold"),
             pady=20
         ).pack()
 
+        # Sidebar buttons with animations
         btns = [
             ("Dashboard", self.show_dashboard),
             ("Book Taxi", self.show_book_taxi),
             ("My Bookings", self.show_bookings),
             ("Profile", self.show_profile),
             ("Settings", self.show_settings),
-            ("Support", self.show_support),
+            ("Support", self. show_support),
         ]
 
         for text, cmd in btns:
-            Button(
-                self.sidebar,
-                text=text,
-                command=cmd,
-                font=("Arial", 12),
-                fg="white",
-                bg=self.color_sidebar_btn,
-                bd=0,
-                relief="flat",
-                activebackground=self.color_sidebar_btn_active,
-                cursor="hand2",
-                width=20,
-                height=2
-            ).pack(pady=5)
+            self.create_sidebar_button(text, cmd)
 
-        # LOGOUT AT BOTTOM (like Admin/Rider)
-        Button(
+        # LOGOUT AT BOTTOM with animation
+        logout_btn = AnimatedButton(
             self.sidebar,
             text="Logout",
+            command=self._on_logout,
+            variant="danger",
+            theme=self.current_theme,
             width=20,
-            bg="#ef4444",
+            height=2
+        )
+        logout_btn.pack(side=BOTTOM, pady=20)
+
+    def create_sidebar_button(self, text, command):
+        """Create an animated sidebar button"""
+        btn = Button(
+            self.sidebar,
+            text=text,
+            command=command,
+            font=("Arial", 12),
             fg="white",
-            font=("Arial", 12, "bold"),
+            bg=self.color_sidebar_btn,
+            bd=0,
             relief="flat",
+            activebackground=self.color_sidebar_btn_active,
             cursor="hand2",
-            command=self._on_logout
-        ).pack(side=BOTTOM, pady=20)
+            width=20,
+            height=2,
+            anchor="center"
+        )
+        btn.pack(pady=5, padx=5)
+        
+        # Add hover effect
+        EventHandler.on_hover(
+            btn,
+            enter_config={"bg": self.color_sidebar_btn_active},
+            leave_config={"bg": self.color_sidebar_btn}
+        )
+        
+        return btn
 
     def clear_content(self):
         for w in self.content.winfo_children():
@@ -292,10 +543,7 @@ class CustomerDashboard:
 
     # -------- shared helper:  make Treeview columns sortable --------
     def _make_treeview_sortable(self, tree, cols, numeric_cols=None):
-        """
-        Enable click-to-sort on ttk.Treeview headers. 
-        numeric_cols: iterable of column ids that should sort numerically. 
-        """
+        """Enable click-to-sort on ttk.Treeview headers"""
         if numeric_cols is None:
             numeric_cols = set()
         else:
@@ -319,34 +567,37 @@ class CustomerDashboard:
         for c in cols:
             tree.heading(c, command=lambda col=c: _sort(col, False))
 
-    # ------------------ DASHBOARD ------------------
+    # ------------------ ENHANCED DASHBOARD WITH ANIMATED CARDS ------------------
     def show_dashboard(self):
         self.clear_content()
         welcome_name = self.user_full_name if self.user_full_name else "Customer"
 
-        # Hero
+        # Hero Section
+        hero_frame = Frame(self.content, bg=self.color_content_bg)
+        hero_frame.pack(pady=(20, 8))
+        
         Label(
-            self.content,
+            hero_frame,
             text=f"Welcome, {welcome_name}!",
             font=("Arial", 26, "bold"),
             bg=self.color_content_bg,
             fg=self.color_accent
-        ).pack(pady=(20, 8))
+        ).pack()
 
         Label(
-            self.content,
+            hero_frame,
             text="Quick glance at your booking activity",
             font=("Arial", 12),
             bg=self.color_content_bg,
             fg=self.color_text_secondary
         ).pack()
 
-        # Stats cards
+        # Stats cards with AnimatedCard
         cards = Frame(self.content, bg=self.color_content_bg)
         cards.pack(pady=20, padx=20, fill=X)
 
         try:
-            rows = self.service. get_bookings()
+            rows = self.service.get_bookings()
         except Exception: 
             rows = []
 
@@ -355,27 +606,53 @@ class CustomerDashboard:
         cancelled = sum(1 for r in rows if len(r) > 5 and str(r[5]).lower() == "cancelled")
         active = total - completed - cancelled
 
-        def card(parent, emoji, value, label, color):
-            outer = Frame(parent, bg=self.color_card_bg, relief="flat", bd=1)
-            outer.pack(side=LEFT, padx=10, fill=BOTH, expand=True)
-            inner = Frame(outer, bg=self.color_card_bg)
-            inner.pack(padx=20, pady=20, fill=BOTH)
-            Label(inner, text=emoji, font=("Arial", 30), bg=self.color_card_bg).pack()
-            Label(inner, text=str(value), font=("Arial", 28, "bold"), bg=self.color_card_bg, fg=color).pack()
-            Label(inner, text=label, font=("Arial", 12), bg=self.color_card_bg, fg=self.color_text_secondary).pack()
+        self.create_stat_card(cards, total, "Total Bookings", "#2563eb")
+        self.create_stat_card(cards, completed, "Completed", "#16a34a")
+        self.create_stat_card(cards, active, "Active / Upcoming", "#f59e0b")
 
-        card(cards, "🧳", total, "Total Bookings", "#2563eb")
-        card(cards, "✅", completed, "Completed", "#16a34a")
-        card(cards, "🕒", active, "Active / Upcoming", "#f59e0b")
+        # Quick Action Buttons
+        quick_actions = Frame(self.content, bg=self.color_content_bg)
+        quick_actions.pack(pady=20)
+        
+        AnimatedButton(
+            quick_actions,
+            text="Book New Taxi",
+            command=self.show_book_taxi,
+            variant="success",
+            theme=self.current_theme,
+            width=18,
+            height=2
+        ).pack(side=LEFT, padx=5)
+        
+        AnimatedButton(
+            quick_actions,
+            text="View Bookings",
+            command=self.show_bookings,
+            variant="primary",
+            theme=self.current_theme,
+            width=18,
+            height=2
+        ).pack(side=LEFT, padx=5)
 
         # Hint text
         Label(
             self.content,
-            text="Use the left menu to book a taxi or view booking history.",
-            font=("Arial", 12),
+            text="Use the left menu to navigate or quick actions above",
+            font=("Arial", 11),
             bg=self.color_content_bg,
             fg=self.color_text_secondary
         ).pack(pady=(10, 0))
+
+    def create_stat_card(self, parent, value, label, color):
+        """Create an animated stat card"""
+        outer = AnimatedCard(parent, bg=self.color_card_bg, relief="flat", bd=1, hover_lift=True)
+        outer.pack(side=LEFT, padx=10, fill=BOTH, expand=True)
+        
+        inner = Frame(outer, bg=self.color_card_bg)
+        inner.pack(padx=20, pady=20, fill=BOTH)
+        
+        Label(inner, text=str(value), font=("Arial", 32, "bold"), bg=self.color_card_bg, fg=color).pack()
+        Label(inner, text=label, font=("Arial", 11), bg=self.color_card_bg, fg=self.color_text_secondary).pack()
 
     # ------------------ PROFILE PAGE ------------------
     def show_profile(self):
@@ -464,7 +741,7 @@ class CustomerDashboard:
 
         def upload_photo():
             filetypes = [
-                ("Image files", "*.png *. jpg *.jpeg *.gif *.bmp"),
+                ("Image files", "*.png *.jpg *.jpeg *. gif *.bmp"),
                 ("All files", "*.*"),
             ]
             filepath = filedialog.askopenfilename(
@@ -493,18 +770,22 @@ class CustomerDashboard:
 
             refresh_avatar()
 
-        Button(
+        AnimatedButton(
             photo_frame,
             text="Upload Photo",
-            bg=self.color_accent,
-            fg="white",
-            font=("Arial", 10, "bold"),
-            command=upload_photo
+            command=upload_photo,
+            variant="primary",
+            theme=self.current_theme,
+            width=15,
+            height=1
         ).pack(pady=5)
 
-        # ---------- Text fields ----------
-        frame = Frame(self.content, bg=self.color_content_bg)
-        frame.pack(pady=10)
+        # ---------- Text fields in a card ----------
+        form_card = AnimatedCard(self.content, bg=self.color_card_bg, relief="flat", bd=1)
+        form_card.pack(pady=10, padx=20, fill=BOTH)
+
+        frame = Frame(form_card, bg=self.color_card_bg)
+        frame.pack(pady=20, padx=20)
 
         labels = ["Full Name", "Email", "Phone", "Address", "Gender", "Role"]
         values = [full_name, email, phone, address, gender, role]
@@ -517,16 +798,16 @@ class CustomerDashboard:
             Label(
                 frame,
                 text=lab,
-                bg=self.color_content_bg,
+                bg=self.color_card_bg,
                 fg=self.color_text_primary,
-                font=("Arial", 12)
+                font=("Arial", 11, "bold")
             ).grid(row=i, column=0, padx=10, pady=7, sticky="w")
 
-            ent = Entry(frame, width=30, font=("Arial", 12), bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
+            ent = Entry(frame, width=30, font=("Arial", 11), bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
             ent.insert(0, values[i])
 
             if lab in ["Email", "Gender", "Role"]:
-                ent.config(state="disabled")
+                ent.config(state="disabled", disabledbackground=self.color_content_bg)
 
             ent.grid(row=i, column=1, padx=10, pady=7)
             entries[lab] = ent
@@ -540,22 +821,21 @@ class CustomerDashboard:
                 messagebox.showwarning("Warning", "All fields are required!")
                 return
 
-            try: 
+            try:
                 self.service.update_profile(new_name, new_phone, new_address)
                 self.user_full_name = new_name
                 messagebox.showinfo("Success", "Profile updated successfully!")
-            except Exception as e: 
-                messagebox.showerror("Error", f"Failed to update profile: {e}")
+            except Exception as e:
+                messagebox. showerror("Error", f"Failed to update profile: {e}")
 
-        Button(
+        AnimatedButton(
             self.content,
             text="Save Changes",
-            bg=self.color_accent,
-            fg="white",
-            font=("Arial", 12, "bold"),
+            command=update,
+            variant="success",
+            theme=self.current_theme,
             width=20,
-            height=2,
-            command=update
+            height=2
         ).pack(pady=20)
 
     # ------------------ BOOK TAXI PAGE ------------------
@@ -570,11 +850,15 @@ class CustomerDashboard:
             fg=self.color_accent
         ).pack(pady=20)
 
-        frame = Frame(self.content, bg=self.color_content_bg)
-        frame.pack(pady=10, padx=16, fill=X)
+        # Form card
+        form_card = AnimatedCard(self.content, bg=self.color_card_bg, relief="flat", bd=1)
+        form_card.pack(pady=10, padx=20, fill=BOTH)
 
-        label_opts = {"bg": self.color_content_bg, "fg": self.color_text_primary, "anchor": "w", "font": ("Arial", 11), "width": 18}
-        entry_pad = {"padx": 8, "pady": 5, "sticky": "w"}
+        frame = Frame(form_card, bg=self.color_card_bg)
+        frame.pack(pady=20, padx=16, fill=X)
+
+        label_opts = {"bg": self.color_card_bg, "fg": self.color_text_primary, "anchor": "w", "font": ("Arial", 11, "bold"), "width": 18}
+        entry_pad = {"padx": 8, "pady": 8, "sticky": "w"}
 
         # --- load addresses from service ---
         try:
@@ -586,8 +870,7 @@ class CustomerDashboard:
         districts_with_default = ["Select Address"] + self.districts
 
         # ----- Pickup combobox (searchable) -----
-        Label(frame, text="Pickup Location:", **label_opts) \
-            .grid(row=0, column=0, **entry_pad)
+        Label(frame, text="Pickup Location:", **label_opts).grid(row=0, column=0, **entry_pad)
 
         self.pickup_var = StringVar()
         self.pickup_combo = ttk.Combobox(
@@ -600,8 +883,8 @@ class CustomerDashboard:
         self.pickup_combo.set("Select Address")
 
         def pickup_focus_in(event):
-            if self.pickup_var.get() == "Select Address": 
-                self.pickup_combo. set("")
+            if self.pickup_var.get() == "Select Address":
+                self.pickup_combo.set("")
         self.pickup_combo.bind("<FocusIn>", pickup_focus_in)
 
         self.pickup_combo.bind(
@@ -610,8 +893,7 @@ class CustomerDashboard:
         )
 
         # ----- Dropoff combobox (searchable) -----
-        Label(frame, text="Dropoff Location:", **label_opts) \
-            .grid(row=1, column=0, **entry_pad)
+        Label(frame, text="Dropoff Location:", **label_opts).grid(row=1, column=0, **entry_pad)
 
         self.drop_var = StringVar()
         self.drop_combo = ttk.Combobox(
@@ -634,8 +916,7 @@ class CustomerDashboard:
         )
 
         # ----- Booking date (today + future only) -----
-        Label(frame, text="Booking Date:", **label_opts) \
-            .grid(row=2, column=0, **entry_pad)
+        Label(frame, text="Booking Date:", **label_opts).grid(row=2, column=0, **entry_pad)
 
         today = datetime.now().date()
 
@@ -652,10 +933,9 @@ class CustomerDashboard:
         date_entry.grid(row=2, column=1, **entry_pad)
 
         # ----- Booking time + NOW button -----
-        Label(frame, text="Time (HH:MM):", **label_opts) \
-            .grid(row=3, column=0, **entry_pad)
+        Label(frame, text="Time (HH:MM):", **label_opts).grid(row=3, column=0, **entry_pad)
 
-        time_container = Frame(frame, bg=self.color_content_bg)
+        time_container = Frame(frame, bg=self.color_card_bg)
         time_container. grid(row=3, column=1, **entry_pad)
 
         entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
@@ -679,14 +959,14 @@ class CustomerDashboard:
                 return
 
             pickup = self.pickup_var.get().strip()
-            drop = self.drop_var.get().strip()
+            drop = self. drop_var.get().strip()
             booking_date_str = date_entry.get().strip()
             booking_time = time_entry.get().strip()
 
-            # validate date (server-side)
+            # validate date
             try:
                 booking_date = datetime.strptime(booking_date_str, "%Y-%m-%d").date()
-            except ValueError:
+            except ValueError: 
                 messagebox.showwarning("Error", "Invalid date format.")
                 return
 
@@ -696,35 +976,32 @@ class CustomerDashboard:
             if not drop or drop == "Select Address":
                 messagebox. showwarning("Error", "Please choose Dropoff Location.")
                 return
-            if not booking_time:
+            if not booking_time: 
                 messagebox.showwarning("Error", "Please enter booking time.")
                 return
 
             try:
                 self.service.create_booking(pickup, drop, booking_date, booking_time)
-                messagebox. showinfo("Stay Tuned", "Booking successful! Stay tuned for confirmation ✨")
+                messagebox. showinfo("Stay Tuned", "Booking successful! Stay tuned for confirmation")
                 self.show_bookings()
             except ValueError as e:
                 messagebox. showwarning("Error", str(e))
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to create booking:  {e}")
+            except Exception as e: 
+                messagebox.showerror("Error", f"Failed to create booking: {e}")
                 print(f"[DEBUG] Booking insert failed: {e}")
 
-        Button(
+        AnimatedButton(
             self.content,
             text="Confirm Booking",
-            bg="#16a34a",
-            fg="white",
+            command=submit,
+            variant="success",
+            theme=self.current_theme,
             width=20,
-            height=2,
-            command=submit
+            height=2
         ).pack(pady=20)
 
     def update_combobox(self, combo, var):
-        """
-        Filter combobox values based on typed input. 
-        Works with self.districts list.
-        """
+        """Filter combobox values based on typed input (JS-like debouncing)"""
         if not hasattr(self, "districts"):
             return
 
@@ -737,11 +1014,11 @@ class CustomerDashboard:
         filtered = [d for d in self.districts if typed in d.lower()]
 
         if not filtered:
-            combo["values"] = ["Select Address"] + self. districts
+            combo["values"] = ["Select Address"] + self.districts
         else:
             combo["values"] = filtered
 
-    # ------------------ COMPACT BOOKING HISTORY (FIXED STYLE NAME) ------------------
+    # ------------------ ENHANCED BOOKING HISTORY ------------------
     def show_bookings(self):
         self.clear_content()
 
@@ -753,19 +1030,22 @@ class CustomerDashboard:
             fg=self.color_accent
         ).pack(pady=8)
 
-        # Compact Search / filter bar
-        search_frame = Frame(self.content, bg=self.color_content_bg)
-        search_frame.pack(fill=X, padx=10, pady=(0, 4))
-        
+        # Search/filter card
+        search_card = AnimatedCard(self.content, bg=self.color_card_bg, relief="flat", bd=1)
+        search_card.pack(fill=X, padx=10, pady=(0, 4))
+
+        search_frame = Frame(search_card, bg=self.color_card_bg)
+        search_frame.pack(fill=X, padx=10, pady=8)
+
         entry_bg = self.theme_colors.get("entry_bg", "#ffffff")
         entry_fg = self. theme_colors.get("entry_fg", "#111827")
-        
-        Label(search_frame, text="Search:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 10)).pack(side=LEFT, padx=(0, 3))
+
+        Label(search_frame, text="Search:", bg=self.color_card_bg, fg=self.color_text_primary, font=("Arial", 10, "bold")).pack(side=LEFT, padx=(0, 3))
         search_var = StringVar()
         search_entry = Entry(search_frame, textvariable=search_var, width=20, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg, font=("Arial", 9))
         search_entry.pack(side=LEFT, padx=(0, 8))
 
-        Label(search_frame, text="Status:", bg=self.color_content_bg, fg=self.color_text_primary, font=("Arial", 10)).pack(side=LEFT, padx=(0, 3))
+        Label(search_frame, text="Status:", bg=self.color_card_bg, fg=self.color_text_primary, font=("Arial", 10, "bold")).pack(side=LEFT, padx=(0, 3))
         status_var = StringVar(value="All")
         status_cb = ttk.Combobox(
             search_frame,
@@ -777,40 +1057,42 @@ class CustomerDashboard:
         )
         status_cb.pack(side=LEFT)
 
-        columns = ("ID", "Pickup", "Dropoff", "Date", "Time", "Status")
-        # FIXED: Removed space from style name
+        # Table
+        columns = ("ID", "Pickup", "Dropoff", "Date", "Time", "Status", "Finished Time")
         table = ttk.Treeview(self.content, columns=columns, show="headings", height=22, style="Customer.Treeview")
 
-        # Striped rows with proper colors
+        # Striped rows
         even_bg = self.theme_colors.get("treeview_even", "#ffffff")
         odd_bg = self.theme_colors.get("treeview_odd", "#f3f4f6")
         text_color = self.theme_colors.get("treeview_fg", "#111827")
-        
-        table.tag_configure("evenrow", background=even_bg, foreground=text_color)
+
+        table. tag_configure("evenrow", background=even_bg, foreground=text_color)
         table.tag_configure("oddrow", background=odd_bg, foreground=text_color)
 
-        # Compact but readable columns
-        for col in columns: 
+        # Configure columns
+        for col in columns:
             table.heading(col, text=col)
             if col == "ID":
                 table.column(col, width=50, minwidth=45, anchor=CENTER, stretch=False)
             elif col in ("Date", "Time"):
-                table. column(col, width=80, minwidth=75, anchor=CENTER, stretch=False)
+                table.column(col, width=80, minwidth=75, anchor=CENTER, stretch=False)
             elif col == "Status":
                 table.column(col, width=85, minwidth=80, anchor=CENTER, stretch=False)
+            elif col == "Finished Time": 
+                table.column(col, width=130, minwidth=120, anchor=CENTER, stretch=False)
             else:  # Pickup / Dropoff
                 table.column(col, width=150, minwidth=120, stretch=True)
-        
+
         table.pack(fill=BOTH, expand=True, padx=10, pady=4)
 
-        # make sortable
+        # Make sortable
         self._make_treeview_sortable(table, columns, numeric_cols={"ID"})
 
         if not self.customer_id:
             messagebox.showerror("Error", "Customer ID not available. Cannot load bookings.")
             return
 
-        # load data
+        # Load data
         self._customer_bookings_cache = []
         try:
             rows = self.service.get_bookings()
@@ -818,7 +1100,7 @@ class CustomerDashboard:
             messagebox.showerror("Error", f"Failed to load bookings:  {e}")
             rows = []
 
-        # Normalize rows to dict-like for easier filtering
+        # Normalize rows
         self._customer_bookings_cache = [
             {
                 "ID": r[0],
@@ -827,6 +1109,7 @@ class CustomerDashboard:
                 "Date": r[3],
                 "Time": r[4],
                 "Status": r[5] if len(r) > 5 else "",
+                "Finished Time": r[6] if len(r) > 6 else "",
             }
             for r in rows
         ]
@@ -843,6 +1126,7 @@ class CustomerDashboard:
                     r.get("Date"),
                     r.get("Time"),
                     r.get("Status"),
+                    r.get("Finished Time", ""),
                 ]
                 tag = "evenrow" if idx % 2 == 0 else "oddrow"
                 table. insert("", END, values=vals, tags=(tag,))
@@ -861,8 +1145,9 @@ class CustomerDashboard:
                 status_val = str(r.get("Status", ""))
 
                 if text: 
+                    finished_time = str(r.get("Finished Time", ""))
                     combined = " ".join(
-                        [str(rid), pickup, dropoff, date_str, time_str, status_val]
+                        [str(rid), pickup, dropoff, date_str, time_str, status_val, finished_time]
                     ).lower()
                     if text not in combined:
                         continue
@@ -894,14 +1179,14 @@ class CustomerDashboard:
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to cancel booking: {e}")
 
-        Button(
+        AnimatedButton(
             self.content,
             text="Cancel Booking",
-            bg="#ef4444",
-            fg="white",
+            command=cancel,
+            variant="danger",
+            theme=self.current_theme,
             width=18,
-            font=("Arial", 10, "bold"),
-            command=cancel
+            height=1
         ).pack(pady=6)
 
     # ------------------ SETTINGS & SUPPORT ------------------
@@ -915,16 +1200,19 @@ class CustomerDashboard:
             fg=self.color_accent
         ).pack(pady=20)
 
-        frame = Frame(self.content, bg=self.color_content_bg)
-        frame.pack(pady=10)
+        settings_card = AnimatedCard(self.content, bg=self.color_card_bg, relief="flat", bd=1)
+        settings_card.pack(pady=10, padx=20, fill=BOTH)
+
+        frame = Frame(settings_card, bg=self.color_card_bg)
+        frame.pack(pady=20, padx=20)
 
         Label(
             frame,
             text="Notification Preferences",
-            bg=self. color_content_bg,
+            bg=self. color_card_bg,
             fg=self.color_text_primary,
             font=("Arial", 12, "bold")
-        ).grid(row=0, column=0, sticky="w", padx=10, pady=5)
+        ).grid(row=0, column=0, sticky="w", padx=10, pady=10)
 
         self.email_notif_var = BooleanVar(value=True)
         self.sms_notif_var = BooleanVar(value=True)
@@ -933,24 +1221,28 @@ class CustomerDashboard:
             frame,
             text="Email notifications",
             variable=self.email_notif_var,
-            bg=self.color_content_bg,
+            bg=self.color_card_bg,
             fg=self. color_text_primary,
-            selectcolor=self.color_card_bg
-        ).grid(row=1, column=0, sticky="w", padx=20)
+            selectcolor=self.color_card_bg,
+            font=("Arial", 11)
+        ).grid(row=1, column=0, sticky="w", padx=20, pady=5)
+        
         Checkbutton(
             frame,
             text="SMS notifications",
             variable=self.sms_notif_var,
-            bg=self.color_content_bg,
+            bg=self.color_card_bg,
             fg=self.color_text_primary,
-            selectcolor=self.color_card_bg
-        ).grid(row=2, column=0, sticky="w", padx=20)
+            selectcolor=self.color_card_bg,
+            font=("Arial", 11)
+        ).grid(row=2, column=0, sticky="w", padx=20, pady=5)
 
         Label(
             frame,
             text="(These settings are placeholders – connect them to DB later. )",
-            bg=self.color_content_bg,
-            fg=self.color_text_secondary
+            bg=self.color_card_bg,
+            fg=self.color_text_secondary,
+            font=("Arial", 9, "italic")
         ).grid(row=3, column=0, sticky="w", padx=10, pady=10)
 
     def show_support(self):
@@ -964,34 +1256,37 @@ class CustomerDashboard:
             fg=self.color_accent
         ).pack(pady=20)
 
+        support_card = AnimatedCard(self.content, bg=self.color_card_bg, relief="flat", bd=1)
+        support_card. pack(pady=10, padx=20, fill=BOTH)
+
         Label(
-            self.content,
-            text="If you face any issue with your bookings or profile,\n"
-                 "you can contact our support team.",
+            support_card,
+            text="If you face any issue with your bookings or profile,\nyou can contact our support team.",
             font=("Arial", 12),
-            bg=self. color_content_bg,
+            bg=self.color_card_bg,
             fg=self.color_text_primary,
             justify="center"
-        ).pack(pady=10)
+        ).pack(pady=20)
 
         def contact_support():
             messagebox.showinfo(
                 "Contact Support",
-                "You can contact support at: support@example.com\n"
-                "Or call: +977-XXXXXXXXXX"
+                "Email: support@example.com\n"
+                "Phone: +977-XXXXXXXXXX\n"
+                "Hours: 24/7"
             )
 
-        Button(
-            self.content,
+        AnimatedButton(
+            support_card,
             text="Contact Support",
-            bg=self.color_accent,
-            fg="white",
+            command=contact_support,
+            variant="primary",
+            theme=self.current_theme,
             width=20,
-            height=2,
-            command=contact_support
+            height=2
         ).pack(pady=20)
 
-    # ------------------ LOGOUT (LIKE ADMIN/RIDER) ------------------
+    # ------------------ LOGOUT ------------------
     def _on_logout(self):
         if messagebox.askyesno("Logout", "Are you sure you want to logout?"):
             try:
@@ -999,7 +1294,7 @@ class CustomerDashboard:
                     self.logout_callback()
                 else:
                     self.root.destroy()
-            except Exception: 
+            except Exception:
                 try:
                     self.root. destroy()
                 except Exception:
@@ -1007,7 +1302,7 @@ class CustomerDashboard:
 
     # ------------------ MISC ------------------
     def doNothing(self):
-        messagebox.showinfo("Coming Soon", "Feature not implemented yet ✨")
+        messagebox.showinfo("Coming Soon", "Feature not implemented yet")
 
     def logout(self):
         """Alias for compatibility"""
@@ -1021,8 +1316,8 @@ class CustomerDashboard:
         except Exception:
             pass
         try:
-            self.content.destroy()
-        except Exception:
+            self.content. destroy()
+        except Exception: 
             pass
 
 

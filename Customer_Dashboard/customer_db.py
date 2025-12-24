@@ -143,13 +143,42 @@ class CustomerDB:
 
         cur = conn.cursor()
         try:
-            cur.execute("""
-                SELECT id, pickup, dropoff, date, time, status
-                FROM bookings
-                WHERE user_id=%s
-                ORDER BY id DESC
-            """, (user_id,))
-            return cur.fetchall()
+            # Try to get ride_end_time, fallback if column doesn't exist
+            try:
+                cur.execute("""
+                    SELECT id, pickup, dropoff, date, time, status, ride_end_time
+                    FROM bookings
+                    WHERE user_id=%s
+                    ORDER BY id DESC
+                """, (user_id,))
+                include_timestamp = True
+            except Exception:
+                # Fallback if ride_end_time column doesn't exist
+                cur.execute("""
+                    SELECT id, pickup, dropoff, date, time, status
+                    FROM bookings
+                    WHERE user_id=%s
+                    ORDER BY id DESC
+                """, (user_id,))
+                include_timestamp = False
+            
+            rows = cur.fetchall() or []
+            result = []
+            for r in rows:
+                if include_timestamp:
+                    ride_end_time = r[6] if len(r) > 6 and r[6] else None
+                    # Format timestamp if it exists
+                    if ride_end_time:
+                        if isinstance(ride_end_time, str):
+                            finished_timestamp = ride_end_time
+                        else:
+                            finished_timestamp = ride_end_time.strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        finished_timestamp = ""
+                    result.append((r[0], r[1], r[2], r[3], r[4], r[5], finished_timestamp))
+                else:
+                    result.append((r[0], r[1], r[2], r[3], r[4], r[5], ""))
+            return result
         finally:
             cur.close()
             conn.close()

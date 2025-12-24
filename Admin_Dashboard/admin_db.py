@@ -85,10 +85,21 @@ class AdminDB:
         
         cur = conn.cursor()
         try:
-            cur.execute(
-                "SELECT b.id, b.user_id, b.pickup, b.dropoff, b.date, b.time, b.status, b.driver_id "
-                "FROM bookings b ORDER BY b.id DESC"
-            )
+            # Try to get ride_end_time, fallback if column doesn't exist
+            try:
+                cur.execute(
+                    "SELECT b.id, b.user_id, b.pickup, b.dropoff, b.date, b.time, b.status, b.driver_id, b.ride_end_time "
+                    "FROM bookings b ORDER BY b.id DESC"
+                )
+                include_timestamp = True
+            except Exception:
+                # Fallback if ride_end_time column doesn't exist
+                cur.execute(
+                    "SELECT b.id, b.user_id, b.pickup, b.dropoff, b.date, b.time, b.status, b.driver_id "
+                    "FROM bookings b ORDER BY b.id DESC"
+                )
+                include_timestamp = False
+            
             bookings = cur.fetchall() or []
             
             user_ids = {b[1] for b in bookings if len(b) > 1 and b[1] is not None}
@@ -123,6 +134,19 @@ class AdminDB:
                 status = b[6] if len(b) > 6 else ""
                 did = b[7] if len(b) > 7 else None
                 
+                # Get finished timestamp if available
+                if include_timestamp:
+                    ride_end_time = b[8] if len(b) > 8 and b[8] else None
+                    if ride_end_time:
+                        if isinstance(ride_end_time, str):
+                            finished_timestamp = ride_end_time
+                        else:
+                            finished_timestamp = ride_end_time.strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        finished_timestamp = ""
+                else:
+                    finished_timestamp = ""
+                
                 cust_name = user_map.get(uid, {}).get("name") if uid else ""
                 driver_name = driver_map.get(did) if did else ""
                 cust_display = cust_name if cust_name else (str(uid) if uid else "")
@@ -135,7 +159,8 @@ class AdminDB:
                     "date": date,
                     "time": time,
                     "status": status,
-                    "driver": driver_name
+                    "driver": driver_name,
+                    "finished_timestamp": finished_timestamp
                 })
             
             return result

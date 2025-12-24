@@ -291,3 +291,131 @@ class RiderDB:
             cur.close()
             conn.close()
 
+    def get_completed_rides(self, driver_id):
+        """Get all completed rides for a driver."""
+        conn = create_connection()
+        if not conn:
+            return []
+
+        cur = conn.cursor()
+        try:
+            # Try to get ride_end_time, fallback if column doesn't exist
+            try:
+                cur.execute(
+                    "SELECT b.id, u.email, b.pickup, b.dropoff, b.date, b.time, b.status, b.ride_end_time "
+                    "FROM bookings b LEFT JOIN users u ON b.user_id = u.id "
+                    "WHERE b.driver_id=%s AND b.status='Completed' ORDER BY b.id DESC",
+                    (driver_id,)
+                )
+                include_timestamp = True
+            except Exception:
+                # Fallback if ride_end_time column doesn't exist
+                cur.execute(
+                    "SELECT b.id, u.email, b.pickup, b.dropoff, b.date, b.time, b.status "
+                    "FROM bookings b LEFT JOIN users u ON b.user_id = u.id "
+                    "WHERE b.driver_id=%s AND b.status='Completed' ORDER BY b.id DESC",
+                    (driver_id,)
+                )
+                include_timestamp = False
+            
+            rows = cur.fetchall() or []
+            result = []
+            for r in rows:
+                if include_timestamp:
+                    ride_end_time = r[7] if len(r) > 7 and r[7] else None
+                    # Format timestamp if it exists
+                    if ride_end_time:
+                        if isinstance(ride_end_time, str):
+                            finished_timestamp = ride_end_time
+                        else:
+                            finished_timestamp = ride_end_time.strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        finished_timestamp = ""
+                    result.append({
+                        "id": r[0],
+                        "customer_email": r[1] or "",
+                        "pickup": r[2] or "",
+                        "dropoff": r[3] or "",
+                        "date": r[4] or "",
+                        "time": r[5] or "",
+                        "status": r[6] or "",
+                        "finished_timestamp": finished_timestamp
+                    })
+                else:
+                    result.append({
+                        "id": r[0],
+                        "customer_email": r[1] or "",
+                        "pickup": r[2] or "",
+                        "dropoff": r[3] or "",
+                        "date": r[4] or "",
+                        "time": r[5] or "",
+                        "status": r[6] or "",
+                        "finished_timestamp": ""
+                    })
+            return result
+        finally:
+            cur.close()
+            conn.close()
+
+    def get_ongoing_rides(self, driver_id):
+        """Get all ongoing rides (Accepted status) for a driver."""
+        conn = create_connection()
+        if not conn:
+            return []
+
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT b.id, u.email, b.pickup, b.dropoff, b.date, b.time, b.status "
+                "FROM bookings b LEFT JOIN users u ON b.user_id = u.id "
+                "WHERE b.driver_id=%s AND b.status='Accepted' ORDER BY b.id DESC",
+                (driver_id,)
+            )
+            rows = cur.fetchall() or []
+            result = []
+            for r in rows:
+                result.append({
+                    "id": r[0],
+                    "customer_email": r[1] or "",
+                    "pickup": r[2] or "",
+                    "dropoff": r[3] or "",
+                    "date": r[4] or "",
+                    "time": r[5] or "",
+                    "status": r[6] or ""
+                })
+            return result
+        finally:
+            cur.close()
+            conn.close()
+
+    def get_cancelled_rides(self, driver_id):
+        """Get all cancelled rides for a driver."""
+        conn = create_connection()
+        if not conn:
+            return []
+
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT b.id, u.email, b.pickup, b.dropoff, b.date, b.time, b.status "
+                "FROM bookings b LEFT JOIN users u ON b.user_id = u.id "
+                "WHERE b.driver_id=%s AND b.status='Cancelled' ORDER BY b.id DESC",
+                (driver_id,)
+            )
+            rows = cur.fetchall() or []
+            result = []
+            for r in rows:
+                result.append({
+                    "id": r[0],
+                    "customer_email": r[1] or "",
+                    "pickup": r[2] or "",
+                    "dropoff": r[3] or "",
+                    "date": r[4] or "",
+                    "time": r[5] or "",
+                    "status": r[6] or ""
+                })
+            return result
+        finally:
+            cur.close()
+            conn.close()
+

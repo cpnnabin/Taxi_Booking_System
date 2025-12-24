@@ -18,7 +18,7 @@ def update_database():
         cursor = conn.cursor()
         
         # Add driver_id column to bookings table if it doesn't exist
-        cursor. execute("""
+        cursor.execute("""
             SELECT COLUMN_NAME 
             FROM INFORMATION_SCHEMA.COLUMNS 
             WHERE TABLE_SCHEMA = 'taxi_booking_system_test' 
@@ -32,6 +32,38 @@ def update_database():
                 ADD COLUMN driver_id INT NULL,
                 ADD FOREIGN KEY (driver_id) REFERENCES drivers(DID)
                 ON DELETE SET NULL
+            """)
+            conn.commit()
+        
+        # Add ride_end_time column to bookings table if it doesn't exist
+        cursor.execute("""
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = 'taxi_booking_system_test' 
+            AND TABLE_NAME = 'bookings' 
+            AND COLUMN_NAME = 'ride_end_time'
+        """)
+        
+        if not cursor.fetchone():
+            cursor.execute("""
+                ALTER TABLE bookings 
+                ADD COLUMN ride_end_time DATETIME NULL
+            """)
+            conn.commit()
+        
+        # Add ride_status column to bookings table if it doesn't exist
+        cursor.execute("""
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = 'taxi_booking_system_test' 
+            AND TABLE_NAME = 'bookings' 
+            AND COLUMN_NAME = 'ride_status'
+        """)
+        
+        if not cursor.fetchone():
+            cursor.execute("""
+                ALTER TABLE bookings 
+                ADD COLUMN ride_status VARCHAR(50) NULL
             """)
             conn.commit()
         
